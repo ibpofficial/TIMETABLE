@@ -1,0 +1,182 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #0b1020;
+  --panel: #121832;
+  --card: #0e1430;
+  --chip: #1a2042;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --brand: #5b8cff;
+  --brand-2: #7cf4ff;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --shadow: 0 10px 30px rgba(0,0,0,.35);
+  --radius: 12px;
+  --gradient: linear-gradient(135deg, #5b8cff, #7cf4ff);
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: radial-gradient(ellipse 1200px 800px at 10% -5%, #1a2448 0%, transparent 70%),
+              radial-gradient(ellipse 800px 600px at 90% 100%, #0d1a3a 0%, transparent 70%),
+              var(--bg);
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--brand) transparent;
+}
+*::-webkit-scrollbar { width: 5px; height: 5px; }
+*::-webkit-scrollbar-thumb { background: var(--brand); border-radius: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* Custom focus ring */
+*:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* =========================
+   Timetable Print Styles
+   ========================= */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+
+  /* Each batch starts on a new page */
+  .timetable-batch-section {
+    page-break-before: always;
+  }
+  .timetable-batch-section:first-child {
+    page-break-before: avoid;
+  }
+
+  .timetable-grid {
+    color: black;
+    border: 1px solid #ccc;
+  }
+  .timetable-grid table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .timetable-grid th,
+  .timetable-grid td {
+    border: 1px solid #ccc;
+    padding: 6px 8px;
+    font-size: 11px;
+    color: black;
+  }
+  .slot-card {
+    background: white !important;
+    color: black !important;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+  }
+}
+
+/* =========================
+   Reusable Animation Utilities
+   ========================= */
+@keyframes slideDown {
+  from { transform: translateY(-12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes slideUp {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes popIn {
+  0% { transform: scale(0.9); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes shimmer {
+  from { background-position: -1000px 0; }
+  to { background-position: 1000px 0; }
+}
+@keyframes tickerScroll {
+  0%   { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-slide-down  { animation: slideDown 0.3s ease-out both; }
+.animate-slide-up    { animation: slideUp 0.3s ease-out both; }
+.animate-fade-in     { animation: fadeIn 0.25s ease-out both; }
+.animate-pop-in      { animation: popIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-spin-slow   { animation: spin-slow 3s linear infinite; }
+
+/* Skeleton loader shimmer */
+.skeleton {
+  background: linear-gradient(90deg, #1a2245 25%, #243060 50%, #1a2245 75%);
+  background-size: 1000px 100%;
+  animation: shimmer 1.5s infinite linear;
+  border-radius: 6px;
+}
+
+/* Ticker animation (replaces marquee) */
+.ticker-wrap {
+  overflow: hidden;
+  white-space: nowrap;
+}
+.ticker-inner {
+  display: inline-block;
+  animation: tickerScroll 30s linear infinite;
+  padding-right: 2rem;
+}
+.ticker-inner:hover {
+  animation-play-state: paused;
+}
+
+/* Drag & Drop classes */
+.dnd-dragging {
+  opacity: 0.5;
+  cursor: grabbing !important;
+}
+.dnd-over {
+  outline: 2px dashed var(--brand);
+  outline-offset: -2px;
+  background: rgba(91, 140, 255, 0.08) !important;
+}
+.dnd-conflict {
+  outline: 2px dashed var(--danger) !important;
+  background: rgba(239, 68, 68, 0.08) !important;
+}
+
+/* Search highlight */
+.search-highlight {
+  outline: 2px solid #f59e0b !important;
+  background: rgba(245, 158, 11, 0.15) !important;
+}
