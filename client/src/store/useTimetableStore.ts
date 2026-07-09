@@ -30,8 +30,10 @@ interface TimetableState {
 
   // Step 2 - Batches
   batches: string[];
-  addBatch: (name: string) => void;
+  batchSizes: Record<string, number>;
+  addBatch: (name: string, size?: number) => void;
   removeBatch: (name: string) => void;
+  setBatchSize: (name: string, size: number) => void;
 
   // Step 3 - Faculties
   faculties: Faculty[];
@@ -90,16 +92,17 @@ const defaultState = {
   slotLength: 60,
   maxClassesPerDay: 6,
   theoryRooms: [
-    { id: 'T1', name: 'T1', type: 'theory' as const, capacity: 60 },
-    { id: 'T2', name: 'T2', type: 'theory' as const, capacity: 60 },
-    { id: 'T3', name: 'T3', type: 'theory' as const, capacity: 60 },
-    { id: 'T4', name: 'T4', type: 'theory' as const, capacity: 60 },
+    { id: 'T1', name: 'T1', type: 'theory', capacity: 60, building: 'A', floor: 1, roomNumber: '101', equipment: ['projector'] },
+    { id: 'T2', name: 'T2', type: 'theory', capacity: 60, building: 'A', floor: 1, roomNumber: '102', equipment: ['projector'] },
+    { id: 'T3', name: 'T3', type: 'theory', capacity: 60, building: 'A', floor: 2, roomNumber: '201', equipment: ['projector', 'smart_board'] },
+    { id: 'T4', name: 'T4', type: 'theory', capacity: 60, building: 'A', floor: 2, roomNumber: '202', equipment: ['projector', 'smart_board'] },
   ],
   labRooms: [
-    { id: 'L1', name: 'L1', type: 'practical' as const, capacity: 30 },
-    { id: 'L2', name: 'L2', type: 'practical' as const, capacity: 30 },
+    { id: 'L1', name: 'L1', type: 'practical', capacity: 30, building: 'B', floor: 1, roomNumber: '101', equipment: ['pc_lab_software'] },
+    { id: 'L2', name: 'L2', type: 'practical', capacity: 30, building: 'B', floor: 1, roomNumber: '102', equipment: ['pc_lab_software'] },
   ],
   batches: [],
+  batchSizes: {},
   faculties: [],
   subjects: [],
   breaks: [],
@@ -128,10 +131,21 @@ export const useTimetableStore = create<TimetableState>()(
       setTheoryRooms: (theoryRooms) => set({ theoryRooms }),
       setLabRooms: (labRooms) => set({ labRooms }),
 
-      addBatch: (name) => set((s) => ({ batches: [...s.batches, name] })),
-      removeBatch: (name) => set((s) => ({
-        batches: s.batches.filter((b) => b !== name),
-        subjects: s.subjects.filter((sub) => !sub.batches.every((b) => b === name)),
+      addBatch: (name, size = 60) => set((s) => ({
+        batches: [...s.batches, name],
+        batchSizes: { ...s.batchSizes, [name]: size },
+      })),
+      removeBatch: (name) => set((s) => {
+        const newSizes = { ...s.batchSizes };
+        delete newSizes[name];
+        return {
+          batches: s.batches.filter((b) => b !== name),
+          batchSizes: newSizes,
+          subjects: s.subjects.filter((sub) => !sub.batches.every((b) => b === name)),
+        };
+      }),
+      setBatchSize: (name, size) => set((s) => ({
+        batchSizes: { ...s.batchSizes, [name]: size },
       })),
 
       addFaculty: (f) => set((s) => ({ faculties: [...s.faculties, f] })),
@@ -171,6 +185,7 @@ export const useTimetableStore = create<TimetableState>()(
         theoryRooms: config.rooms?.theoryList ?? s.theoryRooms,
         labRooms: config.rooms?.labList ?? s.labRooms,
         batches: config.batches ?? s.batches,
+        batchSizes: config.batchSizes ?? s.batchSizes ?? {},
         faculties: config.faculties ?? s.faculties,
         subjects: config.subjects ?? s.subjects,
         breaks: config.breaks ?? s.breaks,
@@ -193,6 +208,7 @@ export const useTimetableStore = create<TimetableState>()(
         theoryRooms: state.theoryRooms,
         labRooms: state.labRooms,
         batches: state.batches,
+        batchSizes: state.batchSizes,
         faculties: state.faculties,
         subjects: state.subjects,
         breaks: state.breaks,

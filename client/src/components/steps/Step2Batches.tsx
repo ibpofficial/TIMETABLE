@@ -6,8 +6,9 @@ import { StepNav } from './StepNav';
 import { toast } from 'sonner';
 
 export function Step2Batches() {
-  const { batches, addBatch, removeBatch } = useTimetableStore();
+  const { batches, batchSizes, addBatch, removeBatch } = useTimetableStore();
   const [input, setInput] = useState('');
+  const [size, setSize] = useState('60');
   const [error, setError] = useState('');
 
   const handleAdd = () => {
@@ -15,8 +16,16 @@ export function Step2Batches() {
     if (!name) { setError('Batch name cannot be empty.'); return; }
     if (batches.includes(name)) { setError(`"${name}" already exists.`); return; }
     if (!/^[A-Za-z0-9\-_\s]+$/.test(name)) { setError('Batch name can only contain letters, numbers, hyphens, or spaces.'); return; }
-    addBatch(name);
+    
+    const parsedSize = parseInt(size, 10);
+    if (isNaN(parsedSize) || parsedSize <= 0) {
+      toast.error('Student count must be a positive number.');
+      return;
+    }
+
+    addBatch(name, parsedSize);
     setInput('');
+    setSize('60');
     setError('');
   };
 
@@ -41,7 +50,7 @@ export function Step2Batches() {
 
       <Card className="mb-5">
         <div className="flex gap-3 items-end">
-          <FormField label="Batch Name" htmlFor="batchNameInput" error={error} className="flex-1">
+          <FormField label="Batch Name" htmlFor="batchNameInput" error={error} className="flex-[2]">
             <Input
               id="batchNameInput"
               value={input}
@@ -49,6 +58,17 @@ export function Step2Batches() {
               onKeyDown={handleKeyDown}
               placeholder="e.g., CSE-3A"
               error={!!error}
+            />
+          </FormField>
+          <FormField label="Student Count" htmlFor="batchSizeInput" className="flex-1">
+            <Input
+              id="batchSizeInput"
+              type="number"
+              min="1"
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="e.g., 60"
             />
           </FormField>
           <Button
@@ -66,7 +86,7 @@ export function Step2Batches() {
             {batches.map((b) => (
               <Chip
                 key={b}
-                label={b}
+                label={`${b} (${batchSizes[b] || 60} students)`}
                 onRemove={() => removeBatch(b)}
                 color="blue"
               />

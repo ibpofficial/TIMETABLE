@@ -59,6 +59,7 @@ export function Step6Generate() {
         labList: store.labRooms,
       },
       batches: store.batches,
+      batchSizes: store.batchSizes,
       faculties: store.faculties,
       subjects: store.subjects,
       breaks: store.breaks,

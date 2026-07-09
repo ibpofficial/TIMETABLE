@@ -125,10 +125,10 @@ export class TimetableSolver {
   public init() {
     this.timeslots = this.buildTimeslots();
     
-    // Aggregate rooms list
+    // Aggregate rooms list, preserving custom types with fallback
     this.rooms = [
-      ...(this.state.rooms.theoryList ?? []).map((r) => ({ ...r, type: 'theory' as const })),
-      ...(this.state.rooms.labList ?? []).map((r) => ({ ...r, type: 'practical' as const })),
+      ...(this.state.rooms.theoryList ?? []).map((r) => ({ ...r, type: r.type || 'theory' })),
+      ...(this.state.rooms.labList ?? []).map((r) => ({ ...r, type: r.type || 'practical' })),
     ];
 
     // Initialize counts and occupancies
@@ -157,8 +157,6 @@ export class TimetableSolver {
     // Build Session Variables for scheduling
     this.variables = [];
     for (const s of this.state.subjects) {
-      // Fixed slot subjects are handled during normal search with domain restricted to 1 value,
-      // or placed immediately as pre-assignments
       const totalSessions = s.classesPerWeek;
       for (let i = 0; i < totalSessions; i++) {
         this.variables.push({
@@ -196,8 +194,15 @@ export class TimetableSolver {
         const ts = this.timeslots[slotIdx];
         if (ts.day !== ev.day || ts.isBreak) break;
 
-        // Allocate a room for this event if possible
-        const targetRooms = this.rooms.filter((r) => r.type === ev.roomType);
+        // Allocate a room for this event if possible (matching custom room types)
+        const targetRooms = this.rooms.filter((r) => {
+          if (ev.roomType === 'theory') {
+            return ['theory', 'lecture_hall', 'seminar_room', 'auditorium'].includes(r.type);
+          } else {
+            return ['practical', 'lab', 'computer_lab', 'studio'].includes(r.type);
+          }
+        });
+
         let allocatedRoom = 'N/A';
         for (const room of targetRooms) {
           const occ = this.roomOccupancy.get(room.id);
@@ -231,11 +236,30 @@ export class TimetableSolver {
   private computeInitialDomain(v: SessionVariable): DomainValue[] {
     const list: DomainValue[] = [];
     const possibleTimeBlocks = this.getTimeBlocks(v.length);
-    const rooms = this.rooms.filter((r) => r.type === v.roomType);
-
-    // If subject has fixed slot, restrict time block search to that slot
     const subject = v.subject;
-    
+
+    // Room-type matching: filter by subject preferredRoomTypes
+    let compatibleRooms = this.rooms;
+    if (subject.preferredRoomTypes && subject.preferredRoomTypes.length > 0) {
+      compatibleRooms = compatibleRooms.filter((r) => subject.preferredRoomTypes!.includes(r.type));
+    } else {
+      // Fallback default matching categories
+      if (v.roomType === 'theory') {
+        compatibleRooms = compatibleRooms.filter((r) => ['theory', 'lecture_hall', 'seminar_room', 'auditorium'].includes(r.type));
+      } else {
+        compatibleRooms = compatibleRooms.filter((r) => ['practical', 'lab', 'computer_lab', 'studio'].includes(r.type));
+      }
+    }
+
+    // Pre-calculate total student capacity requirement based on batch sizes
+    let totalStudents = 0;
+    if (this.state.batchSizes) {
+      for (const b of v.batches) {
+        totalStudents += this.state.batchSizes[b] || 0;
+      }
+    }
+    const capacityNeeded = Math.max(totalStudents, subject.capacityRequirement || 0);
+
     for (const tb of possibleTimeBlocks) {
       // Constraint: Respect subject fixed slot if specified
       if (subject.fixed) {
@@ -254,9 +278,16 @@ export class TimetableSolver {
       }
 
       // Find compatible rooms
-      for (const room of rooms) {
-        // Constraint: Room capacity requirement
-        if (subject.capacityRequirement && room.capacity < subject.capacityRequirement) continue;
+      for (const room of compatibleRooms) {
+        // Constraint: Room capacity requirement (checking batch size sum + subject override)
+        if (capacityNeeded > 0 && room.capacity < capacityNeeded) continue;
+
+        // Constraint: Room equipment requirements
+        if (subject.requiredEquipment && subject.requiredEquipment.length > 0) {
+          const roomEquipment = room.equipment || [];
+          const hasAllEquipment = subject.requiredEquipment.every((eq) => roomEquipment.includes(eq));
+          if (!hasAllEquipment) continue;
+        }
         
         list.push({
           timeBlock: tb,

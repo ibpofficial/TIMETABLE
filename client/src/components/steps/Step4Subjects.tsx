@@ -10,7 +10,18 @@ let subjIdCounter = 1;
 const genSubjId = () => `S${subjIdCounter++}_${Date.now().toString(36)}`;
 
 export function Step4Subjects() {
-  const { subjects, faculties, batches, days, addSubject, removeSubject, slotLength, startTime, endTime, maxClassesPerDay } = useTimetableStore();
+  const { subjects, faculties, batches, days, addSubject, removeSubject, slotLength, startTime, endTime, maxClassesPerDay, theoryRooms, labRooms } = useTimetableStore();
+
+  // Extract all unique configured room types and equipment tags from Step 1
+  const configuredRoomTypes = Array.from(new Set([
+    ...theoryRooms.map(r => r.type),
+    ...labRooms.map(r => r.type)
+  ])).filter(Boolean);
+
+  const configuredEquipment = Array.from(new Set([
+    ...theoryRooms.flatMap(r => r.equipment || []),
+    ...labRooms.flatMap(r => r.equipment || [])
+  ])).filter(Boolean);
 
   const [form, setForm] = useState({
     selectedBatches: [] as string[],
@@ -23,6 +34,8 @@ export function Step4Subjects() {
     fixedDay: days[0] || 'Mon',
     fixedStart: '09:00',
     fixedLength: 1,
+    preferredRoomTypes: [] as string[],
+    requiredEquipment: [] as string[],
   });
 
   const [subUnavails, setSubUnavails] = useState<UnavailabilityWindow[]>([]);
@@ -81,6 +94,8 @@ export function Step4Subjects() {
       facultyId: form.facultyId || null,
       batches: form.selectedBatches,
       unavail: [...subUnavails],
+      preferredRoomTypes: form.preferredRoomTypes,
+      requiredEquipment: form.requiredEquipment,
       ...(form.hasFixed ? {
         fixed: true,
         fixedDay: form.fixedDay,
@@ -90,7 +105,16 @@ export function Step4Subjects() {
     };
 
     addSubject(newSubject);
-    setForm({ ...form, name: '', classesPerWeek: 3, sessionLength: 1, hasFixed: false, selectedBatches: [] });
+    setForm({
+      ...form,
+      name: '',
+      classesPerWeek: 3,
+      sessionLength: 1,
+      hasFixed: false,
+      selectedBatches: [],
+      preferredRoomTypes: [],
+      requiredEquipment: []
+    });
     setSubUnavails([]);
     setFormError({});
     toast.success(`Added "${newSubject.name}"`);
@@ -98,8 +122,8 @@ export function Step4Subjects() {
 
   const handleAddUnavail = () => {
     if (!unvStart || !unvEnd) { toast.error('Select start and end time.'); return; }
-    const startM = parseInt(unvStart.replace(':', ''));
-    const endM = parseInt(unvEnd.replace(':', ''));
+    const startM = parseInt(unvStart.replace(':', ''), 10);
+    const endM = parseInt(unvEnd.replace(':', ''), 10);
     if (endM <= startM) { toast.error('End time must be after start time.'); return; }
     setSubUnavails((prev) => [...prev, { day: unvDay, start: unvStart, end: unvEnd }]);
     setUnvStart(''); setUnvEnd('');
@@ -207,19 +231,73 @@ export function Step4Subjects() {
           </FormField>
         </div>
 
-        {/* Advanced: Fixed slot + unavailability */}
+        {/* Advanced: Fixed slot + unavailability + room preferences */}
         <button
           onClick={() => setShowAdvanced((x) => !x)}
           className="mt-4 flex items-center gap-2 text-xs text-slate-500 hover:text-slate-300 transition-colors"
         >
           {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          Advanced constraints (fixed slot, unavailability windows)
+          Advanced constraints (room types, equipment requirements, fixed slot)
         </button>
 
         {showAdvanced && (
           <div className="mt-4 p-4 bg-white/[0.02] rounded-xl border border-white/[0.06] animate-fade-in space-y-4">
+            {/* Preferred Room Types */}
+            {configuredRoomTypes.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-400 mb-2">Preferred Room Types (optional)</p>
+                <div className="flex flex-wrap gap-2">
+                  {configuredRoomTypes.map((t) => {
+                    const active = form.preferredRoomTypes.includes(t);
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => {
+                          setForm(f => ({
+                            ...f,
+                            preferredRoomTypes: active ? f.preferredRoomTypes.filter(x => x !== t) : [...f.preferredRoomTypes, t]
+                          }));
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all
+                          ${active ? 'bg-brand/20 border-brand text-brand-light' : 'bg-white/[0.04] border-white/10 text-slate-400'}`}
+                      >
+                        {t.replace('_', ' ').toUpperCase()}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Required Equipment */}
+            {configuredEquipment.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-400 mb-2">Required Room Equipment (optional)</p>
+                <div className="flex flex-wrap gap-2">
+                  {configuredEquipment.map((eq) => {
+                    const active = form.requiredEquipment.includes(eq);
+                    return (
+                      <button
+                        key={eq}
+                        onClick={() => {
+                          setForm(f => ({
+                            ...f,
+                            requiredEquipment: active ? f.requiredEquipment.filter(x => x !== eq) : [...f.requiredEquipment, eq]
+                          }));
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all
+                          ${active ? 'bg-brand/20 border-brand text-brand-light' : 'bg-white/[0.04] border-white/10 text-slate-400'}`}
+                      >
+                        {eq.replace('_', ' ').toUpperCase()}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Fixed slot */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pt-2 border-t border-white/5">
               <input
                 id="hasFixed"
                 type="checkbox"
@@ -247,7 +325,7 @@ export function Step4Subjects() {
             )}
 
             {/* Unavailability */}
-            <div>
+            <div className="pt-2 border-t border-white/5">
               <p className="text-xs font-semibold text-slate-400 mb-2">Subject Unavailability Windows</p>
               {subUnavails.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-3">
@@ -298,6 +376,8 @@ export function Step4Subjects() {
                     {s.batches.join(', ')} • {s.classesPerWeek}×/week • {s.sessionLength} slot(s)
                     {fac ? ` • ${fac.name}` : ' • Unassigned'}
                     {s.fixed ? ` • Fixed: ${s.fixedDay} ${s.fixedStart}` : ''}
+                    {s.preferredRoomTypes && s.preferredRoomTypes.length > 0 ? ` • Room Types: ${s.preferredRoomTypes.map(x => x.replace('_', ' ').toUpperCase()).join(', ')}` : ''}
+                    {s.requiredEquipment && s.requiredEquipment.length > 0 ? ` • Equipment: ${s.requiredEquipment.map(x => x.replace('_', ' ').toUpperCase()).join(', ')}` : ''}
                     {(s.unavail?.length ?? 0) > 0 ? ` • ${s.unavail!.length} unavail block(s)` : ''}
                   </div>
                 </div>

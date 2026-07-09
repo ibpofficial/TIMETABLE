@@ -15,8 +15,12 @@ export interface InstitutionSettings {
 export interface Room {
   id: string;
   name: string;
-  type: 'theory' | 'practical';
+  type: string;
   capacity: number;
+  building?: string;
+  floor?: number;
+  roomNumber?: string;
+  equipment?: string[];
 }
 
 export interface Faculty {
@@ -42,6 +46,8 @@ export interface Subject {
   unavail?: UnavailabilityWindow[];
   batches: string[]; // Supports multiple batches for Electives!
   capacityRequirement?: number;
+  preferredRoomTypes?: string[];
+  requiredEquipment?: string[];
 }
 
 export interface Break {
@@ -74,6 +80,7 @@ export interface SchedulerInputState {
     labList: Room[];
   };
   batches: string[];
+  batchSizes?: Record<string, number>;
   faculties: Faculty[];
   subjects: Subject[];
   breaks: Break[];
