@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Play, Settings, X, Activity, Layers, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTimetableStore } from '../../store/useTimetableStore';
-import { Button, Card, FormField, Input, SectionHeader } from '../ui';
+import { Button, Card, Input, SectionHeader } from '../ui';
 import { StepNav } from './StepNav';
 import { startGeneration, pollJob, cancelJob } from '../../api/client';
 import type { SchedulerConfig } from '../../types';
@@ -282,24 +282,31 @@ export function Step6Generate() {
             </h3>
 
             <div className="space-y-4 flex-1">
-              <FormField
-                label="Maximum Backtracks"
-                htmlFor="maxAttempts"
-                hint="Higher limit resolves hard bottlenecks but takes longer."
-              >
+              {/* Max Attempts parameter */}
+              <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-3">
+                <div>
+                  <label htmlFor="maxAttempts" className="text-xs font-bold text-slate-200 block">
+                    Optimization Search Depth (Backtracks)
+                  </label>
+                  <span className="text-[10px] text-slate-500 block mt-1 leading-normal">
+                    Controls how exhaustively the scheduler attempts to swap slots to resolve overlaps. Set to 1,000–5,000 for standard timetables, or higher (10,000+) if you have strict teacher/room availability conflicts.
+                  </span>
+                </div>
                 <Input
                   id="maxAttempts"
                   type="number"
                   min="50"
                   max="100000"
                   step="100"
+                  className="text-xs font-mono py-1.5"
                   value={maxAttempts}
                   disabled={isGenerating}
                   onChange={(e) => setMaxAttempts(Number(e.target.value))}
                 />
-              </FormField>
+              </div>
 
-              <div className="p-3 bg-white/[0.02] border border-white/[0.04] rounded-xl flex items-start gap-3">
+              {/* Symmetrical Spreading parameter */}
+              <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl flex items-start gap-3 hover:border-brand/20 transition-all">
                 <input
                   id="balanceCheck"
                   type="checkbox"
@@ -309,11 +316,11 @@ export function Step6Generate() {
                   className="accent-brand w-4.5 h-4.5 mt-0.5 cursor-pointer"
                 />
                 <div>
-                  <label htmlFor="balanceCheck" className="text-sm font-semibold text-slate-200 cursor-pointer block select-none">
-                    Spread subjects weekly
+                  <label htmlFor="balanceCheck" className="text-xs font-bold text-slate-200 cursor-pointer block select-none">
+                    Symmetrical Class Spreading
                   </label>
-                  <span className="text-[10px] text-slate-500 block mt-0.5 leading-normal">
-                    Pushes the optimizer to distribute the same subject on different days rather than squeezing them into a single day.
+                  <span className="text-[10px] text-slate-500 block mt-1 leading-normal">
+                    Distribute lectures of the same subject across different days (e.g. Monday, Wednesday, Friday) instead of clustering them on a single day. This is highly recommended to improve student retention and avoid burnout.
                   </span>
                 </div>
               </div>

@@ -167,10 +167,10 @@ export function Step1Institution() {
       maxClassesPerDay: 6,
       rooms: {
         theoryList: [
-          { id: 'SCI_101', name: 'SCI-101', type: 'lecture_hall', capacity: 60, building: 'SCI', floor: 1, roomNumber: '101', equipment: ['projector'] },
-          { id: 'SCI_102', name: 'SCI-102', type: 'lecture_hall', capacity: 60, building: 'SCI', floor: 1, roomNumber: '102', equipment: ['projector'] },
-          { id: 'SCI_201', name: 'SCI-201', type: 'seminar_room', capacity: 60, building: 'SCI', floor: 2, roomNumber: '201', equipment: ['projector', 'smart_board'] },
-          { id: 'SCI_202', name: 'SCI-202', type: 'seminar_room', capacity: 60, building: 'SCI', floor: 2, roomNumber: '202', equipment: ['projector', 'smart_board'] }
+          { id: 'SCI_101', name: 'SCI-101', type: 'lecture_hall', capacity: 120, building: 'SCI', floor: 1, roomNumber: '101', equipment: ['projector'] },
+          { id: 'SCI_102', name: 'SCI-102', type: 'lecture_hall', capacity: 120, building: 'SCI', floor: 1, roomNumber: '102', equipment: ['projector'] },
+          { id: 'SCI_201', name: 'SCI-201', type: 'seminar_room', capacity: 120, building: 'SCI', floor: 2, roomNumber: '201', equipment: ['projector', 'smart_board'] },
+          { id: 'SCI_202', name: 'SCI-202', type: 'seminar_room', capacity: 120, building: 'SCI', floor: 2, roomNumber: '202', equipment: ['projector', 'smart_board'] }
         ],
         labList: [
           { id: 'SCI_103', name: 'SCI-103', type: 'computer_lab', capacity: 30, building: 'SCI', floor: 1, roomNumber: '103', equipment: ['computers', 'projector'] },

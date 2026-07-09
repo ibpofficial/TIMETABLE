@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Sparkles, RefreshCw, Loader2, Send } from 'lucide-react';
+import { Sparkles, RefreshCw, Loader2, Send, Minimize2, Maximize2 } from 'lucide-react';
 import { useTimetableStore } from '../store/useTimetableStore';
 import { fetchAiTip } from '../api/client';
 import { Card } from './ui';
@@ -12,9 +12,14 @@ export function AiPanel() {
   const store = useTimetableStore();
   const { currentStep } = store;
 
+  // Panel state
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'coach' | 'chat'>('coach');
+  
+  // Coach states
   const [tip, setTip] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [tipLoaded, setTipLoaded] = useState(false);
 
   // Chat states
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
@@ -26,12 +31,19 @@ export function AiPanel() {
   const cacheRef = useRef<Record<number, string>>({});
   const chatEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Reset coach tip loaded state on step change (no auto-loads, wait for user trigger)
+  useEffect(() => {
+    setTipLoaded(false);
+    setTip('');
+  }, [currentStep]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, chatLoading]);
+
   // Custom Inline Markdown Parsing & Styling Engine
   const parseInlineMarkdown = (str: string) => {
-    // Replace arrows
     let txt = str.replace(/->/g, ' ➔ ');
-    
-    // Split on bold delimiters **
     const parts = txt.split('**');
     return parts.map((part, idx) => {
       if (idx % 2 === 1) {
@@ -95,6 +107,7 @@ export function AiPanel() {
   const loadTip = async (force = false) => {
     if (!force && cacheRef.current[currentStep]) {
       setTip(cacheRef.current[currentStep]);
+      setTipLoaded(true);
       return;
     }
 
@@ -133,6 +146,7 @@ export function AiPanel() {
       
       setTip(result.reply);
       cacheRef.current[currentStep] = result.reply;
+      setTipLoaded(true);
     } catch (err: any) {
       console.error('AI Tip loading error:', err);
       const fallback = currentStep === 1 
@@ -151,18 +165,11 @@ export function AiPanel() {
 
       setTip(fallback);
       cacheRef.current[currentStep] = fallback;
+      setTipLoaded(true);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    loadTip();
-  }, [currentStep]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, chatLoading]);
 
   const handleSendChat = async () => {
     const q = chatInput.trim();
@@ -229,6 +236,40 @@ export function AiPanel() {
     if (e.key === 'Enter') handleSendChat();
   };
 
+  const stepLabel =
+    currentStep === 1 ? 'Institution & Time' :
+    currentStep === 2 ? 'Student Batches' :
+    currentStep === 3 ? 'Faculty Constraints' :
+    currentStep === 4 ? 'Subjects & Courses' :
+    currentStep === 5 ? 'Breaks & Fixed Events' :
+    currentStep === 6 ? 'Review & Solver Settings' :
+    'Results Solution';
+
+  // ── Render Collapsed State ──────────────────────────────────────────
+  if (isCollapsed) {
+    return (
+      <div
+        className="no-print w-full cursor-pointer"
+        onClick={() => setIsCollapsed(false)}
+      >
+        <Card className="border-[#28305a]/60 bg-gradient-to-br from-[#0e1430] to-[#0a0f24] relative overflow-hidden flex flex-col p-3.5 w-full hover:border-brand/30 transition-all">
+          <div className="flex justify-between items-center w-full">
+            <div className="flex items-center gap-2.5">
+              <div className="w-2 h-2 rounded-full bg-brand animate-pulse shrink-0" />
+              <h3 className="text-xs font-bold text-slate-200 flex items-center gap-1.5 uppercase tracking-wider">
+                ✨ AI Scheduling Copilot & Assistant (Collapsed)
+              </h3>
+            </div>
+            <button className="text-[10px] font-bold text-brand hover:text-brand-light flex items-center gap-1">
+              Expand Panel <Maximize2 size={10} />
+            </button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // ── Render Expanded State ───────────────────────────────────────────
   return (
     <Card className="border-[#28305a]/60 bg-gradient-to-br from-[#0e1430] to-[#0a0f24] relative overflow-hidden flex flex-col min-h-[420px] max-h-[600px] p-5 w-full">
       {/* Decorative background glow */}
@@ -253,16 +294,25 @@ export function AiPanel() {
           </button>
         </div>
 
-        {activeTab === 'coach' && (
+        <div className="flex items-center gap-2">
+          {activeTab === 'coach' && tipLoaded && (
+            <button
+              onClick={() => loadTip(true)}
+              disabled={loading}
+              className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-50"
+              title="Refresh AI suggestions"
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            </button>
+          )}
           <button
-            onClick={() => loadTip(true)}
-            disabled={loading}
-            className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-50"
-            title="Refresh AI suggestions"
+            onClick={() => setIsCollapsed(true)}
+            className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors"
+            title="Minimize AI Panel"
           >
-            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+            <Minimize2 size={12} />
           </button>
-        )}
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -273,6 +323,19 @@ export function AiPanel() {
               <div className="flex flex-col items-center justify-center gap-2 py-4 text-slate-500">
                 <Loader2 className="animate-spin text-brand/60" size={18} />
                 <span className="text-[10px] font-mono tracking-wider">Analyzing state...</span>
+              </div>
+            ) : !tipLoaded ? (
+              <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
+                <p className="text-xs text-slate-400 max-w-sm leading-normal">
+                  Coach suggestions analyze your scheduling setup for Step {currentStep} ({stepLabel}) to identify resource blockages and optimization opportunities.
+                </p>
+                <button
+                  onClick={() => loadTip(false)}
+                  className="bg-brand/20 border border-brand/35 text-brand-light hover:bg-brand/30 text-xs px-4 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-brand/10 flex items-center gap-2"
+                >
+                  <Sparkles size={13} />
+                  Load AI Coach Instructions
+                </button>
               </div>
             ) : (
               <div className="space-y-2 text-xs leading-relaxed text-slate-300 font-medium animate-fade-in">
