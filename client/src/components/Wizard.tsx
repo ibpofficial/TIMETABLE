@@ -10,6 +10,7 @@ import { Step5Breaks } from './steps/Step5Breaks';
 import { Step6Generate } from './steps/Step6Generate';
 import { Step7Results } from './steps/Step7Results';
 import { AiPanel } from './AiPanel';
+import { TimetableHealthChecker } from './TimetableHealthChecker';
 
 const STEPS = [
   { id: 1, label: 'Institution & Time' },
@@ -54,9 +55,9 @@ export function Wizard() {
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 max-w-[1400px] mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+      <main className="flex-1 max-w-[1400px] mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 print:block print:p-0 print:m-0">
         {/* Sidebar — Step Navigator */}
-        <aside className="lg:sticky lg:top-[80px] h-fit">
+        <aside className="lg:sticky lg:top-[80px] h-fit no-print">
           <nav aria-label="Wizard steps">
             <ol
               role="tablist"
@@ -114,11 +115,6 @@ export function Wizard() {
               })}
             </ol>
           </nav>
-
-          {/* AI Panel in sidebar on larger screens */}
-          <div className="mt-4 hidden lg:block">
-            <AiPanel />
-          </div>
         </aside>
 
         {/* Main Content */}
@@ -126,18 +122,19 @@ export function Wizard() {
           id={`step-panel-${currentStep}`}
           role="tabpanel"
           aria-labelledby={`step-tab-${currentStep}`}
-          className="animate-slide-up min-w-0"
+          className="animate-slide-up min-w-0 flex flex-col gap-6 print:w-full print:p-0 print:m-0"
         >
+          {currentStep < 7 && <div className="no-print"><TimetableHealthChecker /></div>}
           {renderStep()}
 
-          {/* AI Panel below content on mobile */}
-          <div className="mt-6 lg:hidden">
+          {/* Bottom Big AI Assistant */}
+          <div className="no-print">
             <AiPanel />
           </div>
         </div>
       </main>
 
-      <footer className="max-w-[1400px] mx-auto w-full px-6 py-4 flex justify-between items-center border-t border-white/[0.06] text-slate-500 text-sm">
+      <footer className="max-w-[1400px] mx-auto w-full px-6 py-4 flex justify-between items-center border-t border-white/[0.06] text-slate-500 text-sm no-print">
         <span>© 2025 IBP Timetable Generator • NEP 2020 Ready</span>
         <span className="text-xs opacity-50">Constraint-aware scheduling</span>
       </footer>

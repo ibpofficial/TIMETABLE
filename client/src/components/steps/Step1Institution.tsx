@@ -158,12 +158,82 @@ export function Step1Institution() {
     }
   };
 
+  const handleLoadSampleData = () => {
+    const sampleConfig = {
+      days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+      startTime: '09:00',
+      endTime: '17:00',
+      slotLength: 60,
+      maxClassesPerDay: 6,
+      rooms: {
+        theoryList: [
+          { id: 'SCI_101', name: 'SCI-101', type: 'lecture_hall', capacity: 60, building: 'SCI', floor: 1, roomNumber: '101', equipment: ['projector'] },
+          { id: 'SCI_102', name: 'SCI-102', type: 'lecture_hall', capacity: 60, building: 'SCI', floor: 1, roomNumber: '102', equipment: ['projector'] },
+          { id: 'SCI_201', name: 'SCI-201', type: 'seminar_room', capacity: 60, building: 'SCI', floor: 2, roomNumber: '201', equipment: ['projector', 'smart_board'] },
+          { id: 'SCI_202', name: 'SCI-202', type: 'seminar_room', capacity: 60, building: 'SCI', floor: 2, roomNumber: '202', equipment: ['projector', 'smart_board'] }
+        ],
+        labList: [
+          { id: 'SCI_103', name: 'SCI-103', type: 'computer_lab', capacity: 30, building: 'SCI', floor: 1, roomNumber: '103', equipment: ['computers', 'projector'] },
+          { id: 'SCI_104', name: 'SCI-104', type: 'computer_lab', capacity: 30, building: 'SCI', floor: 1, roomNumber: '104', equipment: ['computers'] }
+        ]
+      },
+      batches: ['CSE-1A', 'CSE-1B', 'ECE-1A', 'ECE-1B'],
+      batchSizes: {
+        'CSE-1A': 55,
+        'CSE-1B': 55,
+        'ECE-1A': 45,
+        'ECE-1B': 45
+      },
+      faculties: [
+        { id: 'F1', name: 'Dr. Ishant Upadhyay', leaves: 0, maxWeeklySlots: 12, maxDailySlots: 4, unavail: [] },
+        { id: 'F2', name: 'Dr. Sarah Smith', leaves: 1, maxWeeklySlots: 12, maxDailySlots: 4, unavail: [] },
+        { id: 'F3', name: 'Prof. John Doe', leaves: 0, maxWeeklySlots: 10, maxDailySlots: 3, unavail: [] },
+        { id: 'F4', name: 'Dr. Alice Brown', leaves: 0, maxWeeklySlots: 12, maxDailySlots: 4, unavail: [] }
+      ],
+      subjects: [
+        { id: 'SUB_1', name: 'Data Structures', type: 'theory' as const, classesPerWeek: 3, sessionLength: 1, facultyId: 'F1', batches: ['CSE-1A', 'CSE-1B'], preferredRoomTypes: ['lecture_hall'] },
+        { id: 'SUB_2', name: 'Algorithms Lab', type: 'practical' as const, classesPerWeek: 2, sessionLength: 2, facultyId: 'F1', batches: ['CSE-1A'], preferredRoomTypes: ['computer_lab'], requiredEquipment: ['computers'] },
+        { id: 'SUB_3', name: 'Digital Electronics', type: 'theory' as const, classesPerWeek: 3, sessionLength: 1, facultyId: 'F2', batches: ['ECE-1A', 'ECE-1B'], preferredRoomTypes: ['lecture_hall'] },
+        { id: 'SUB_4', name: 'Microprocessors Lab', type: 'practical' as const, classesPerWeek: 2, sessionLength: 2, facultyId: 'F2', batches: ['ECE-1A'], preferredRoomTypes: ['computer_lab'], requiredEquipment: ['computers'] },
+        { id: 'SUB_5', name: 'Discrete Mathematics', type: 'theory' as const, classesPerWeek: 3, sessionLength: 1, facultyId: 'F3', batches: ['CSE-1A', 'ECE-1A'], preferredRoomTypes: ['seminar_room'] },
+        { id: 'SUB_6', name: 'Communication Networks', type: 'theory' as const, classesPerWeek: 3, sessionLength: 1, facultyId: 'F4', batches: ['ECE-1B'] }
+      ],
+      breaks: [
+        { day: 'Mon', start: '13:00', durationMins: 60 },
+        { day: 'Tue', start: '13:00', durationMins: 60 },
+        { day: 'Wed', start: '13:00', durationMins: 60 },
+        { day: 'Thu', start: '13:00', durationMins: 60 },
+        { day: 'Fri', start: '13:00', durationMins: 60 }
+      ],
+      events: [
+        { name: 'Weekly Assembly', day: 'Fri', start: '09:00', length: 1, roomType: 'theory' as const }
+      ],
+      options: { maxAttempts: 5000, balanceAcrossWeek: true }
+    };
+
+    store.loadConfig(sampleConfig);
+    setAllRooms([
+      ...sampleConfig.rooms.theoryList,
+      ...sampleConfig.rooms.labList
+    ]);
+    toast.success('Successfully loaded sample university data configurations across all steps!');
+  };
+
   return (
     <div>
-      <SectionHeader
-        title="Step 1 — Institution & Time"
-        subtitle="Configure your institution's working schedule and building classrooms."
-      />
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+        <SectionHeader
+          title="Step 1 — Institution & Time"
+          subtitle="Configure your institution's working schedule and building classrooms."
+        />
+        <Button
+          variant="secondary"
+          className="bg-brand/20 border border-brand/40 text-brand-light font-bold px-4 py-2 hover:bg-brand/35 text-xs shadow-md shadow-brand/10 transition-all flex items-center gap-1.5 shrink-0"
+          onClick={handleLoadSampleData}
+        >
+          ✨ Load Example University Data
+        </Button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left Column: Schedule Settings */}

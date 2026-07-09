@@ -7,7 +7,11 @@ import { createJob, getJob, cancelJob } from './jobs';
 import { SchedulerInputState } from './types';
 
 // Load environment variables
+import path from 'path';
 dotenv.config();
+if (!process.env.OPENROUTER_API_KEY) {
+  dotenv.config({ path: path.resolve(process.cwd(), '..', '.env') });
+}
 
 const prisma = new PrismaClient();
 const app = express();

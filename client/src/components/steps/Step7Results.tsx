@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Printer, Download, Search, Sparkles, AlertCircle, Calendar, Users, Home, ChevronLeft, Save, Loader2 } from 'lucide-react';
+import { Printer, Download, Search, Sparkles, AlertCircle, Calendar, Users, Home, ChevronLeft, Save, Loader2, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTimetableStore } from '../../store/useTimetableStore';
 import { Button, Card, SectionHeader, Select, Input, Badge, FormField } from '../ui';
 import { saveTimetable, fetchAiSuggestFix } from '../../api/client';
-import type { Assignment } from '../../types';
+import type { Assignment, ScheduleSolution } from '../../types';
 
 export function Step7Results() {
   const store = useTimetableStore();
@@ -66,10 +66,115 @@ export function Step7Results() {
     loadSuggestions();
   }, [diagnostics]);
 
+  // Calculate Faculty workload & busyness stats dynamically
+  const facultyStats = useMemo(() => {
+    if (!solution) return [];
+
+    return faculties.map((f) => {
+      const seen = new Set<string>();
+      let workingSlots = 0;
+      Object.values(solution.byBatch).forEach((list) => {
+        list.forEach((a) => {
+          if (a.facultyId === f.id && !seen.has(a.id)) {
+            seen.add(a.id);
+            workingSlots += a.length || 1;
+          }
+        });
+      });
+
+      const maxSlots = f.maxWeeklySlots || 12;
+      const ratio = maxSlots > 0 ? Math.round((workingSlots / maxSlots) * 100) : 0;
+
+      return {
+        id: f.id,
+        name: f.name,
+        workingSlots,
+        maxSlots,
+        leaves: f.leaves || 0,
+        ratio,
+      };
+    });
+  }, [solution, faculties]);
+
+  // Interactive Drag & Drop / Move session
+  const handleMoveSession = (sessionId: string, targetDay: string, targetStart: string) => {
+    if (!solution) return;
+
+    const targetSlot = solution.timeslots.find(
+      (t) => t.day === targetDay && t.start === targetStart
+    );
+    if (!targetSlot) return;
+
+    // Find the assignment details being dragged
+    let foundAssignment: Assignment | null = null;
+    for (const list of Object.values(solution.byBatch)) {
+      const match = list.find((x) => x.id === sessionId);
+      if (match) {
+        foundAssignment = match;
+        break;
+      }
+    }
+
+    if (!foundAssignment) return;
+
+    const oldTimeslotId = foundAssignment.timeslotId;
+    const newTimeslotId = targetSlot.id;
+
+    // Create a copy of the solution state
+    const updatedSolution = JSON.parse(JSON.stringify(solution)) as ScheduleSolution;
+
+    // Find any assignment currently in the target slot to swap
+    let targetAssignmentToSwap: Assignment | null = null;
+    for (const list of Object.values(updatedSolution.byBatch)) {
+      const match = list.find((x) => {
+        const ts = updatedSolution.timeslots.find((t) => t.id === x.timeslotId);
+        return ts && ts.day === targetDay && ts.start === targetStart;
+      });
+      if (match) {
+        targetAssignmentToSwap = match;
+        break;
+      }
+    }
+
+    // Move source assignment (moving all batch allocations for shared/electives)
+    Object.values(updatedSolution.byBatch).forEach((list) => {
+      list.forEach((x) => {
+        if (foundAssignment?.subjectId) {
+          if (x.subjectId === foundAssignment.subjectId && x.timeslotId === oldTimeslotId) {
+            x.timeslotId = newTimeslotId;
+          }
+        } else if (x.id === sessionId) {
+          x.timeslotId = newTimeslotId;
+        }
+      });
+    });
+
+    // If occupied, move target back to the source slot (swap)
+    if (targetAssignmentToSwap) {
+      const targetOldTimeslotId = targetAssignmentToSwap.timeslotId;
+      Object.values(updatedSolution.byBatch).forEach((list) => {
+        list.forEach((x) => {
+          if (targetAssignmentToSwap?.subjectId) {
+            if (x.subjectId === targetAssignmentToSwap.subjectId && x.timeslotId === targetOldTimeslotId) {
+              x.timeslotId = oldTimeslotId;
+            }
+          } else if (x.id === targetAssignmentToSwap!.id) {
+            x.timeslotId = oldTimeslotId;
+          }
+        });
+      });
+      toast.success(`Swapped slots: "${foundAssignment.subject}" ⇄ "${targetAssignmentToSwap.subject}"`);
+    } else {
+      toast.success(`Moved "${foundAssignment.subject}" to ${targetDay} ${targetStart}`);
+    }
+
+    store.setSolution(updatedSolution);
+  };
+
   // Render empty state if no solution exists
   if (!solution) {
     return (
-      <div className="py-10">
+      <div className="py-10 no-print">
         <EmptyState
           icon={<Calendar size={48} className="text-slate-600" />}
           title="No results available"
@@ -92,8 +197,8 @@ export function Step7Results() {
         return { start, end };
       })
       .sort((a, b) => {
-        const aVal = parseInt(a.start.replace(':', ''));
-        const bVal = parseInt(b.start.replace(':', ''));
+        const aVal = parseInt(a.start.replace(':', ''), 10);
+        const bVal = parseInt(b.start.replace(':', ''), 10);
         return aVal - bVal;
       });
     return times;
@@ -105,7 +210,6 @@ export function Step7Results() {
       return solution.byBatch[selectedBatch] || [];
     }
 
-    // Faculty view
     if (viewType === 'faculty') {
       const list: Assignment[] = [];
       const seen = new Set<string>();
@@ -120,7 +224,6 @@ export function Step7Results() {
       return list;
     }
 
-    // Room view
     if (viewType === 'room') {
       const list: Assignment[] = [];
       const seen = new Set<string>();
@@ -232,7 +335,7 @@ export function Step7Results() {
                     <span>Querying optimization models...</span>
                   </div>
                 ) : aiSuggestions ? (
-                  <ul className="mt-2 space-y-1.5 text-xs text-slate-300">
+                  <ul className="mt-2 space-y-1.5 text-xs text-slate-300 font-mono">
                     {aiSuggestions.split('\n').filter(Boolean).map((line, i) => (
                       <li key={i} className="flex gap-2 items-start leading-relaxed">
                         <span className="text-brand select-none font-bold">✨</span>
@@ -250,10 +353,12 @@ export function Step7Results() {
       )}
 
       {/* Main Results Title */}
-      <SectionHeader
-        title="Step 7 — Timetable Solution"
-        subtitle="Browse generated schedules, search elements, or print and export configurations."
-      />
+      <div className="no-print">
+        <SectionHeader
+          title="Step 7 — Timetable Solution"
+          subtitle="Browse generated schedules, search elements, or print and export configurations. Drag sessions to adjust."
+        />
+      </div>
 
       {/* Action / Toolbar */}
       <Card className="mb-6 no-print">
@@ -372,6 +477,51 @@ export function Step7Results() {
         </div>
       </Card>
 
+      {/* Faculty Workload & Utilization Analysis */}
+      <Card className="mb-6 no-print">
+        <h3 className="font-semibold text-slate-200 mb-1.5 flex items-center gap-2 text-sm uppercase tracking-wider">
+          <BarChart2 size={16} className="text-brand-light" />
+          Faculty Workload & Busyness Ratio
+        </h3>
+        <p className="text-[11px] text-slate-500 mb-4">
+          Visual analysis of teaching allocation, weekly caps, and availability status. Balanced utilization prevents bottleneck failures.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {facultyStats.map((fs) => {
+            const barColor =
+              fs.ratio > 90 ? 'bg-red-500' :
+              fs.ratio > 70 ? 'bg-amber-500' :
+              fs.ratio > 0 ? 'bg-green-500' :
+              'bg-slate-700';
+
+            return (
+              <div key={fs.id} className="p-3.5 bg-white/[0.02] border border-white/[0.05] rounded-xl flex flex-col justify-between hover:border-brand/20 transition-all">
+                <div>
+                  <div className="flex justify-between items-start gap-1">
+                    <span className="font-bold text-slate-200 text-xs truncate max-w-[130px]">{fs.name}</span>
+                    <Badge variant={fs.ratio > 90 ? 'error' : fs.ratio > 0 ? 'success' : 'default'}>
+                      {fs.ratio}% Busy
+                    </Badge>
+                  </div>
+                  <div className="text-[10px] text-slate-500 mt-2 space-y-0.5 font-mono">
+                    <p>Load: <span className="text-slate-300 font-semibold">{fs.workingSlots} / {fs.maxSlots} slots</span></p>
+                    <p>Leaves: <span className="text-slate-300 font-semibold">{fs.leaves} day(s)</span></p>
+                  </div>
+                </div>
+
+                <div className="w-full bg-[#0b1230] rounded-full h-1.5 overflow-hidden mt-3.5 p-0">
+                  <div
+                    className={`${barColor} h-full rounded-full transition-all duration-300`}
+                    style={{ width: `${Math.min(fs.ratio, 100)}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
       {/* Timetable Print Title Header */}
       <div className="hidden print-only mb-6 text-center">
         <h2 className="text-xl font-bold uppercase tracking-wider text-black">
@@ -385,9 +535,9 @@ export function Step7Results() {
       </div>
 
       {/* Timetable Tabular Grid */}
-      <Card className="p-0 border-white/[0.08] overflow-hidden">
-        <div className="overflow-x-auto timetable-grid">
-          <table className="w-full border-collapse text-left text-xs">
+      <Card className="p-0 border-white/[0.08] overflow-hidden print:border-black print:m-0 print:p-0">
+        <div className="overflow-x-auto timetable-grid print:overflow-visible">
+          <table className="w-full border-collapse text-left text-xs print:w-full print:border-black">
             <thead>
               <tr className="bg-[#0b1230] border-b border-white/[0.08] print:border-b-2 print:border-black">
                 <th className="p-3.5 font-bold text-slate-300 border-r border-white/[0.08] w-20 text-center uppercase tracking-wider print:text-black print:border-black">
@@ -436,11 +586,17 @@ export function Step7Results() {
                         return ts && ts.day === day && ts.start === time.start;
                       });
 
+                      // Droppable empty slot
                       if (!a) {
                         return (
                           <td
                             key={idx}
-                            className="p-3 border-r border-white/[0.06] text-center text-slate-700 font-mono text-[10px] print:border-black"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              const sessId = e.dataTransfer.getData('text/plain');
+                              handleMoveSession(sessId, day, time.start);
+                            }}
+                            className="p-3 border-r border-white/[0.06] text-center text-slate-700 font-mono text-[10px] hover:bg-brand/10 transition-colors cursor-pointer print:border-black"
                           >
                             —
                           </td>
@@ -451,10 +607,23 @@ export function Step7Results() {
                       const isFixed = a.subjectId === null; // Static/Fixed event
                       const fac = faculties.find((f) => f.id === a.facultyId);
 
+                      // Draggable / Droppable filled slot
                       return (
                         <td
                           key={idx}
+                          draggable={!isFixed}
+                          onDragStart={(e) => {
+                            if (!isFixed) {
+                              e.dataTransfer.setData('text/plain', a.id);
+                            }
+                          }}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            const sessId = e.dataTransfer.getData('text/plain');
+                            handleMoveSession(sessId, day, time.start);
+                          }}
                           className={`p-2.5 border-r border-white/[0.06] transition-all print:border-black
+                            ${isFixed ? '' : 'cursor-grab active:cursor-grabbing hover:bg-slate-700/30'}
                             ${highlighted ? 'search-highlight' : ''}
                             ${isFixed
                               ? 'bg-emerald-500/10 text-emerald-300 font-semibold border-emerald-500/20'

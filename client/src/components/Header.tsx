@@ -131,7 +131,7 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-white/[0.07] backdrop-blur-xl bg-[rgba(5,8,20,0.85)] animate-slide-down">
+      <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-white/[0.07] backdrop-blur-xl bg-[rgba(5,8,20,0.85)] animate-slide-down no-print">
         {/* Brand */}
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center text-white font-black text-sm shadow-lg hover:rotate-12 transition-transform duration-300 cursor-default">

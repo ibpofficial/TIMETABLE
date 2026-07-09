@@ -1,7 +1,6 @@
-import { Worker } from 'worker_threads';
-import path from 'path';
 import crypto from 'crypto';
 import { SchedulerInputState, ScheduleSolution, FailureDiagnostic } from './types';
+import { TimetableSolver } from './scheduler/solver';
 
 export interface JobState {
   id: string;
@@ -15,16 +14,13 @@ export interface JobState {
 }
 
 // In-memory job store
-const jobsStore = new Map<string, { state: JobState; worker?: Worker }>();
+const jobsStore = new Map<string, { state: JobState }>();
 
 // Cleanup jobs older than 1 hour periodically
 setInterval(() => {
   const oneHourAgo = Date.now() - 60 * 60 * 1000;
   for (const [id, job] of jobsStore.entries()) {
     if (job.state.createdAt.getTime() < oneHourAgo) {
-      if (job.state.status === 'running' && job.worker) {
-        job.worker.terminate();
-      }
       jobsStore.delete(id);
     }
   }
@@ -33,14 +29,6 @@ setInterval(() => {
 export function createJob(state: SchedulerInputState): string {
   const jobId = crypto.randomUUID();
   
-  // Decide worker entry file based on environment
-  const isProd = __filename.endsWith('.js');
-  const workerFile = isProd
-    ? path.join(__dirname, 'scheduler', 'worker.js')
-    : path.join(__dirname, 'scheduler', 'worker.ts');
-
-  const execArgv = isProd ? [] : ['-r', 'ts-node/register'];
-
   const jobState: JobState = {
     id: jobId,
     status: 'running',
@@ -49,64 +37,34 @@ export function createJob(state: SchedulerInputState): string {
     createdAt: new Date(),
   };
 
-  try {
-    const worker = new Worker(workerFile, {
-      workerData: state,
-      execArgv,
-    });
+  const job = { state: jobState };
+  jobsStore.set(jobId, job);
 
-    jobsStore.set(jobId, { state: jobState, worker });
+  // Execute solver in the next tick to prevent blocking the HTTP response
+  process.nextTick(() => {
+    try {
+      const solver = new TimetableSolver(state);
+      solver.init();
 
-    worker.on('message', (msg) => {
-      const currentJob = jobsStore.get(jobId);
-      if (!currentJob) return;
+      const solution = solver.solve((placed, total) => {
+        jobState.placedSessions = placed;
+        jobState.totalSessions = total;
+      });
 
-      if (msg.type === 'progress') {
-        currentJob.state.placedSessions = msg.placed;
-        currentJob.state.totalSessions = msg.total;
-      } else if (msg.type === 'success') {
-        currentJob.state.status = 'success';
-        currentJob.state.solution = msg.solution;
-        currentJob.worker = undefined;
-        worker.terminate();
-      } else if (msg.type === 'failed') {
-        currentJob.state.status = 'failed';
-        currentJob.state.solution = msg.solution; // return best partial
-        currentJob.state.diagnostics = msg.diagnostics;
-        currentJob.worker = undefined;
-        worker.terminate();
-      } else if (msg.type === 'error') {
-        currentJob.state.status = 'error';
-        currentJob.state.error = msg.error;
-        currentJob.worker = undefined;
-        worker.terminate();
+      if (solution) {
+        jobState.status = 'success';
+        jobState.solution = solution;
+      } else {
+        jobState.status = 'failed';
+        jobState.solution = solver.getBestPartialSolution();
+        jobState.diagnostics = solver.getDiagnostics();
       }
-    });
-
-    worker.on('error', (err) => {
-      console.error(`Worker error in job ${jobId}:`, err);
-      const currentJob = jobsStore.get(jobId);
-      if (currentJob) {
-        currentJob.state.status = 'error';
-        currentJob.state.error = err.message || String(err);
-        currentJob.worker = undefined;
-      }
-    });
-
-    worker.on('exit', (code) => {
-      const currentJob = jobsStore.get(jobId);
-      if (currentJob && currentJob.state.status === 'running') {
-        currentJob.state.status = 'error';
-        currentJob.state.error = `Worker process exited with code ${code}`;
-        currentJob.worker = undefined;
-      }
-    });
-
-  } catch (error: any) {
-    jobState.status = 'error';
-    jobState.error = error?.message || String(error);
-    jobsStore.set(jobId, { state: jobState });
-  }
+    } catch (err: any) {
+      console.error(`Solver runtime error in job ${jobId}:`, err);
+      jobState.status = 'error';
+      jobState.error = err.message || String(err);
+    }
+  });
 
   return jobId;
 }
@@ -120,10 +78,8 @@ export function cancelJob(jobId: string): boolean {
   const job = jobsStore.get(jobId);
   if (!job) return false;
 
-  if (job.state.status === 'running' && job.worker) {
-    job.worker.terminate();
+  if (job.state.status === 'running') {
     job.state.status = 'cancelled';
-    job.worker = undefined;
     return true;
   }
   return false;
