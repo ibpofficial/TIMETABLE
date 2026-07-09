@@ -1022,7 +1022,7 @@ td.drop-target { outline:2px dashed #5b8cff; }
 
 .ai-search {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 10px;
   position: relative;
 }
