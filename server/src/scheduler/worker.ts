@@ -24,15 +24,15 @@ try {
     });
   });
 
-  if (solution) {
+  const diagnostics = solver.getDiagnostics();
+  if (solution && diagnostics.length === 0) {
     parentPort.postMessage({
       type: 'success',
       solution,
     });
   } else {
     // If failed, return the best partial schedule and error diagnostics
-    const partialSolution = solver.getBestPartialSolution();
-    const diagnostics = solver.getDiagnostics();
+    const partialSolution = solution || solver.getBestPartialSolution();
     parentPort.postMessage({
       type: 'failed',
       solution: partialSolution,

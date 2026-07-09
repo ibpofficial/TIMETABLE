@@ -38,6 +38,7 @@ export class TimetableSolver {
   private timeslots: Timeslot[] = [];
   private rooms: Room[] = [];
   private variables: SessionVariable[] = [];
+  private infeasibleVariables: SessionVariable[] = [];
 
   // Track occupancies
   private batchOccupancy = new Map<string, Set<string>>(); // batch -> Set(timeslotId)
@@ -171,10 +172,20 @@ export class TimetableSolver {
       }
     }
 
-    // Build domains for each variable
+    // Build domains for each variable and isolate infeasible ones
+    const searchableVars: SessionVariable[] = [];
+    this.infeasibleVariables = [];
+
     for (const v of this.variables) {
-      this.domains.set(v.id, this.computeInitialDomain(v));
+      const domain = this.computeInitialDomain(v);
+      this.domains.set(v.id, domain);
+      if (domain.length > 0) {
+        searchableVars.push(v);
+      } else {
+        this.infeasibleVariables.push(v);
+      }
     }
+    this.variables = searchableVars;
   }
 
   // Pre-schedule static global events
@@ -754,9 +765,29 @@ export class TimetableSolver {
   // Analyze failure constraints for unplaced variables to compile diagnostic logs
   public getDiagnostics(): FailureDiagnostic[] {
     const diagnostics: FailureDiagnostic[] = [];
-    const assignedIds = new Set(this.bestAssignments.keys());
 
-    // Find all variables that could not be assigned in the best solution
+    // 1. Report precomputed infeasible diagnostics
+    const infeasibleGroups = new Map<string, SessionVariable[]>();
+    for (const v of this.infeasibleVariables) {
+      if (!infeasibleGroups.has(v.subject.id)) {
+        infeasibleGroups.set(v.subject.id, []);
+      }
+      infeasibleGroups.get(v.subject.id)!.push(v);
+    }
+    for (const vars of infeasibleGroups.values()) {
+      const referenceVar = vars[0];
+      const sub = referenceVar.subject;
+      const faculty = this.state.faculties.find((f) => f.id === referenceVar.facultyId);
+      diagnostics.push({
+        subject: sub.name,
+        batches: sub.batches,
+        faculty: faculty ? faculty.name : 'No Faculty Assigned',
+        reason: this.diagnoseEmptyDomain(referenceVar),
+      });
+    }
+
+    // 2. Report search-time diagnostics (unassigned variables in best solution)
+    const assignedIds = new Set(this.bestAssignments.keys());
     const unplacedVars = this.variables.filter((v) => !assignedIds.has(v.id));
     
     // Group by subject to avoid duplicate diagnostics for multiple sessions of the same subject
@@ -774,29 +805,17 @@ export class TimetableSolver {
       const faculty = this.state.faculties.find((f) => f.id === referenceVar.facultyId);
       const facultyName = faculty ? faculty.name : 'No Faculty Assigned';
 
-      // Diagnose conflict reason
+      // Diagnose search-time conflict reason
       let reason = '';
-      const domain = this.computeInitialDomain(referenceVar);
-
-      if (domain.length === 0) {
-        if (sub.fixed) {
-          reason = `The fixed slot requested (${sub.fixedDay} ${sub.fixedStart}) conflicts with unavailability windows or exceeds active time slots.`;
-        } else {
-          reason = `No base timeslot and room combination available. Faculty availability or subject-specific blocked hours might be too restrictive.`;
-        }
+      const batchConflict = this.checkBatchOverloads(referenceVar);
+      const facultyWeeklyConflict = faculty && (this.facultyWeeklyCount.get(faculty.id) ?? 0) + referenceVar.length > faculty.maxWeeklySlots;
+      
+      if (batchConflict) {
+        reason = `Attending batches (${referenceVar.batches.join(', ')}) have no remaining open periods because they already exceed the limit of ${this.state.maxClassesPerDay} classes per day, or are booked in conflicting classes.`;
+      } else if (facultyWeeklyConflict) {
+        reason = `Faculty ${facultyName} exceeds their max load of ${faculty?.maxWeeklySlots} teaching slots/week.`;
       } else {
-        // The variable has a domain, but we couldn't place it. Why?
-        // Let's inspect typical collision points
-        const batchConflict = this.checkBatchOverloads(referenceVar);
-        const facultyWeeklyConflict = faculty && (this.facultyWeeklyCount.get(faculty.id) ?? 0) + referenceVar.length > faculty.maxWeeklySlots;
-        
-        if (batchConflict) {
-          reason = `Attending batches (${referenceVar.batches.join(', ')}) have no remaining open periods because they already exceed the limit of ${this.state.maxClassesPerDay} classes per day, or are booked in conflicting classes.`;
-        } else if (facultyWeeklyConflict) {
-          reason = `Faculty ${facultyName} exceeds their max load of ${faculty?.maxWeeklySlots} teaching slots/week.`;
-        } else {
-          reason = `Unable to resolve schedule collision: Faculty ${facultyName} or the necessary room is double-booked by other classes during all valid slots.`;
-        }
+        reason = `Unable to resolve schedule collision: Faculty ${facultyName} or the necessary room is double-booked by other classes during all valid slots.`;
       }
 
       diagnostics.push({
@@ -808,6 +827,82 @@ export class TimetableSolver {
     }
 
     return diagnostics;
+  }
+
+  // Diagnose exact structural failure for a variable with an empty initial domain
+  private diagnoseEmptyDomain(v: SessionVariable): string {
+    const sub = v.subject;
+    const faculty = this.state.faculties.find((f) => f.id === v.facultyId);
+    
+    // 1. Fixed slot issues
+    if (sub.fixed) {
+      const match = this.timeslots.find(
+        (t) => t.day === sub.fixedDay && t.start === sub.fixedStart
+      );
+      if (!match) {
+        return `Fixed slot (${sub.fixedDay} ${sub.fixedStart}) is outside the active working hours of instruction.`;
+      }
+      if (match.isBreak) {
+        return `Fixed slot (${sub.fixedDay} ${sub.fixedStart}) overlaps with a scheduled school break.`;
+      }
+      return `Fixed slot conflicts with unavailability windows or resource overlaps.`;
+    }
+
+    // 2. Room type availability
+    let compatibleRooms = this.rooms;
+    if (sub.preferredRoomTypes && sub.preferredRoomTypes.length > 0) {
+      compatibleRooms = compatibleRooms.filter((r) => sub.preferredRoomTypes!.includes(r.type));
+      if (compatibleRooms.length === 0) {
+        return `No rooms exist matching the preferred room types: ${sub.preferredRoomTypes.join(', ')}.`;
+      }
+    } else {
+      if (v.roomType === 'theory') {
+        compatibleRooms = compatibleRooms.filter((r) => ['theory', 'lecture_hall', 'seminar_room', 'auditorium'].includes(r.type));
+        if (compatibleRooms.length === 0) {
+          return `No classrooms (theory rooms) are configured in Step 1.`;
+        }
+      } else {
+        compatibleRooms = compatibleRooms.filter((r) => ['practical', 'lab', 'computer_lab', 'studio'].includes(r.type));
+        if (compatibleRooms.length === 0) {
+          return `No labs (practical rooms) are configured in Step 1.`;
+        }
+      }
+    }
+
+    // 3. Room capacity check
+    let totalStudents = 0;
+    if (this.state.batchSizes) {
+      for (const b of v.batches) {
+        totalStudents += this.state.batchSizes[b] || 0;
+      }
+    }
+    const capacityNeeded = Math.max(totalStudents, sub.capacityRequirement || 0);
+    const capacityRooms = compatibleRooms.filter((r) => r.capacity >= capacityNeeded);
+    if (capacityRooms.length === 0) {
+      return `Room capacity mismatch: Combined batch size (${capacityNeeded} students) exceeds the maximum capacity of any compatible room.`;
+    }
+
+    // 4. Equipment tags check
+    if (sub.requiredEquipment && sub.requiredEquipment.length > 0) {
+      const equipRooms = capacityRooms.filter((r) => {
+        const roomEquipment = r.equipment || [];
+        return sub.requiredEquipment!.every((eq) => roomEquipment.includes(eq));
+      });
+      if (equipRooms.length === 0) {
+        return `Equipment mismatch: No rooms of sufficient capacity have the required tags: ${sub.requiredEquipment.join(', ')}.`;
+      }
+    }
+
+    // 5. Length limits
+    if (v.length > this.state.maxClassesPerDay) {
+      return `Session length (${v.length} hrs) exceeds the maximum allowed classes per day (${this.state.maxClassesPerDay} hrs).`;
+    }
+
+    // 6. Availability fallbacks
+    if (faculty) {
+      return `Availability block: Faculty member ${faculty.name} is fully unavailable during all potential timeslots.`;
+    }
+    return `Availability block: Restriction filters leave zero valid scheduling slots.`;
   }
 
   // Simple heuristic checks if batch timeslots are generally overloaded

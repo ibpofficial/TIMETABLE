@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import path from 'path';
+import { Worker } from 'worker_threads';
 import { SchedulerInputState, ScheduleSolution, FailureDiagnostic } from './types';
 import { TimetableSolver } from './scheduler/solver';
 
@@ -13,8 +15,10 @@ export interface JobState {
   createdAt: Date;
 }
 
-// In-memory job store
+// In-memory jobs store
 const jobsStore = new Map<string, { state: JobState }>();
+// Map to track active worker threads for execution cancellation
+const activeWorkers = new Map<string, Worker>();
 
 // Cleanup jobs older than 1 hour periodically
 setInterval(() => {
@@ -25,6 +29,41 @@ setInterval(() => {
     }
   }
 }, 10 * 60 * 1000);
+
+// Helper to run solver inline on the main thread (fallback)
+function runSolverInline(state: SchedulerInputState, jobState: JobState, jobId: string) {
+  process.nextTick(() => {
+    try {
+      if ((jobState.status as any) === 'cancelled') return;
+
+      const solver = new TimetableSolver(state);
+      solver.init();
+
+      const solution = solver.solve((placed, total) => {
+        if ((jobState.status as any) === 'cancelled') return;
+        jobState.placedSessions = placed;
+        jobState.totalSessions = total;
+      });
+
+      if ((jobState.status as any) === 'cancelled') return;
+
+      const diagnostics = solver.getDiagnostics();
+      if (solution && diagnostics.length === 0) {
+        jobState.status = 'success';
+        jobState.solution = solution;
+      } else {
+        jobState.status = 'failed';
+        jobState.solution = solution || solver.getBestPartialSolution();
+        jobState.diagnostics = diagnostics;
+      }
+    } catch (err: any) {
+      if ((jobState.status as any) === 'cancelled') return;
+      console.error(`Solver runtime error in job ${jobId}:`, err);
+      jobState.status = 'error';
+      jobState.error = err.message || String(err);
+    }
+  });
+}
 
 export function createJob(state: SchedulerInputState): string {
   const jobId = crypto.randomUUID();
@@ -40,31 +79,61 @@ export function createJob(state: SchedulerInputState): string {
   const job = { state: jobState };
   jobsStore.set(jobId, job);
 
-  // Execute solver in the next tick to prevent blocking the HTTP response
-  process.nextTick(() => {
-    try {
-      const solver = new TimetableSolver(state);
-      solver.init();
+  // Attempt to delegate to a worker thread for non-blocking execution
+  try {
+    const isTs = __filename.endsWith('.ts');
+    const workerPath = isTs 
+      ? path.resolve(__dirname, 'scheduler', 'worker.ts') 
+      : path.resolve(__dirname, 'scheduler', 'worker.js');
 
-      const solution = solver.solve((placed, total) => {
-        jobState.placedSessions = placed;
-        jobState.totalSessions = total;
-      });
+    const worker = new Worker(workerPath, {
+      workerData: state,
+      execArgv: isTs ? ['-r', 'ts-node/register/transpile-only'] : undefined
+    });
 
-      if (solution) {
-        jobState.status = 'success';
-        jobState.solution = solution;
-      } else {
-        jobState.status = 'failed';
-        jobState.solution = solver.getBestPartialSolution();
-        jobState.diagnostics = solver.getDiagnostics();
+    activeWorkers.set(jobId, worker);
+
+    worker.on('message', (msg) => {
+      if ((jobState.status as any) === 'cancelled') {
+        worker.terminate();
+        activeWorkers.delete(jobId);
+        return;
       }
-    } catch (err: any) {
-      console.error(`Solver runtime error in job ${jobId}:`, err);
-      jobState.status = 'error';
-      jobState.error = err.message || String(err);
-    }
-  });
+
+      if (msg.type === 'progress') {
+        jobState.placedSessions = msg.placed;
+        jobState.totalSessions = msg.total;
+      } else if (msg.type === 'success') {
+        jobState.status = 'success';
+        jobState.solution = msg.solution;
+        activeWorkers.delete(jobId);
+      } else if (msg.type === 'failed') {
+        jobState.status = 'failed';
+        jobState.solution = msg.solution;
+        jobState.diagnostics = msg.diagnostics;
+        activeWorkers.delete(jobId);
+      } else if (msg.type === 'error') {
+        jobState.status = 'error';
+        jobState.error = msg.error;
+        activeWorkers.delete(jobId);
+      }
+    });
+
+    worker.on('error', (err) => {
+      if ((jobState.status as any) === 'cancelled') return;
+      console.warn(`Worker thread crashed or failed to start for job ${jobId}, falling back to main-thread solver:`, err);
+      activeWorkers.delete(jobId);
+      runSolverInline(state, jobState, jobId);
+    });
+
+    worker.on('exit', () => {
+      activeWorkers.delete(jobId);
+    });
+
+  } catch (err) {
+    console.warn(`Failed to spawn worker thread for job ${jobId}, falling back to main-thread solver:`, err);
+    runSolverInline(state, jobState, jobId);
+  }
 
   return jobId;
 }
@@ -80,6 +149,11 @@ export function cancelJob(jobId: string): boolean {
 
   if (job.state.status === 'running') {
     job.state.status = 'cancelled';
+    const worker = activeWorkers.get(jobId);
+    if (worker) {
+      worker.terminate().catch((err) => console.error('Failed to terminate worker:', err));
+      activeWorkers.delete(jobId);
+    }
     return true;
   }
   return false;

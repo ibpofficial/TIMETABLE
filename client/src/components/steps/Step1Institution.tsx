@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTimetableStore } from '../../store/useTimetableStore';
 import { Button, Card, FormField, Input, SectionHeader } from '../ui';
 import { StepNav } from './StepNav';
@@ -34,6 +34,13 @@ export function Step1Institution() {
     ...store.theoryRooms,
     ...store.labRooms
   ]);
+
+  useEffect(() => {
+    setAllRooms([
+      ...store.theoryRooms,
+      ...store.labRooms
+    ]);
+  }, [store.theoryRooms, store.labRooms]);
 
   // Building generator inputs
   const [bldName, setBldName] = useState('SCI');

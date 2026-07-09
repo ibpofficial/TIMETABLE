@@ -98,8 +98,8 @@ const defaultState = {
     { id: 'T4', name: 'T4', type: 'theory', capacity: 60, building: 'A', floor: 2, roomNumber: '202', equipment: ['projector', 'smart_board'] },
   ],
   labRooms: [
-    { id: 'L1', name: 'L1', type: 'practical', capacity: 30, building: 'B', floor: 1, roomNumber: '101', equipment: ['pc_lab_software'] },
-    { id: 'L2', name: 'L2', type: 'practical', capacity: 30, building: 'B', floor: 1, roomNumber: '102', equipment: ['pc_lab_software'] },
+    { id: 'L1', name: 'L1', type: 'practical', capacity: 60, building: 'B', floor: 1, roomNumber: '101', equipment: ['pc_lab_software'] },
+    { id: 'L2', name: 'L2', type: 'practical', capacity: 60, building: 'B', floor: 1, roomNumber: '102', equipment: ['pc_lab_software'] },
   ],
   batches: [],
   batchSizes: {},
