@@ -57,3 +57,11 @@ export async function fetchAiTip(eventName: string, payload: unknown, context: u
 export async function fetchAiSuggestFix(diagnostics: unknown[], context: unknown): Promise<{ suggestions: string }> {
   return request('/ai/suggest-fix', { method: 'POST', body: JSON.stringify({ diagnostics, context }) });
 }
+
+export async function fetchAiAgent(
+  messages: Array<{ role: string; content: string }>,
+  storeState: unknown
+): Promise<{ reply: string; toolsUsed: string[] }> {
+  return request('/ai/agent', { method: 'POST', body: JSON.stringify({ messages, storeState }) });
+}
+

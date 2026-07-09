@@ -2,10 +2,11 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type {
   Faculty, Subject, Break, FixedEvent, Room, SolverOptions,
-  ScheduleSolution, FailureDiagnostic, JobState, SchedulerConfig
+  ScheduleSolution, FailureDiagnostic, JobState, SchedulerConfig,
+  Department, Program
 } from '../types';
 
-export type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type WizardStep = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 interface TimetableState {
   // Wizard navigation
@@ -69,6 +70,16 @@ interface TimetableState {
   setSolution: (sol: ScheduleSolution | null) => void;
   setDiagnostics: (d: FailureDiagnostic[] | null) => void;
 
+  // College-wide structures state
+  departments: Department[];
+  programs: Program[];
+  batchDetails: Record<string, { programId: string; semester: number }>;
+  addDepartment: (dept: Department) => void;
+  removeDepartment: (id: string) => void;
+  addProgram: (prog: Program) => void;
+  removeProgram: (id: string) => void;
+  setBatchDetails: (batch: string, programId: string, semester: number) => void;
+
   // Cloud save
   sessionId: string;
   savedConfigId: string | null;
@@ -85,7 +96,7 @@ interface TimetableState {
 const generateSessionId = () => `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
 const defaultState = {
-  currentStep: 1 as WizardStep,
+  currentStep: 0 as WizardStep,
   days: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
   startTime: '09:00',
   endTime: '17:00',
@@ -113,6 +124,9 @@ const defaultState = {
   solution: null,
   diagnostics: null,
   savedConfigId: null,
+  departments: [],
+  programs: [],
+  batchDetails: {},
 };
 
 export const useTimetableStore = create<TimetableState>()(
@@ -138,9 +152,12 @@ export const useTimetableStore = create<TimetableState>()(
       removeBatch: (name) => set((s) => {
         const newSizes = { ...s.batchSizes };
         delete newSizes[name];
+        const newBatchDetails = { ...s.batchDetails };
+        delete newBatchDetails[name];
         return {
           batches: s.batches.filter((b) => b !== name),
           batchSizes: newSizes,
+          batchDetails: newBatchDetails,
           subjects: s.subjects.filter((sub) => !sub.batches.every((b) => b === name)),
         };
       }),
@@ -176,6 +193,26 @@ export const useTimetableStore = create<TimetableState>()(
       setDiagnostics: (diagnostics) => set({ diagnostics }),
       setSavedConfigId: (savedConfigId) => set({ savedConfigId }),
 
+      addDepartment: (dept) => set((s) => ({ departments: [...s.departments, dept] })),
+      removeDepartment: (id) => set((s) => ({
+        departments: s.departments.filter((d) => d.id !== id),
+        programs: s.programs.filter((p) => p.departmentId !== id),
+        faculties: s.faculties.map((f) => f.departmentId === id ? { ...f, departmentId: null } : f),
+        subjects: s.subjects.map((sub) => sub.departmentId === id ? { ...sub, departmentId: null } : sub),
+        theoryRooms: s.theoryRooms.map((r) => r.departmentId === id ? { ...r, departmentId: null } : r),
+        labRooms: s.labRooms.map((r) => r.departmentId === id ? { ...r, departmentId: null } : r),
+      })),
+
+      addProgram: (prog) => set((s) => ({ programs: [...s.programs, prog] })),
+      removeProgram: (id) => set((s) => ({
+        programs: s.programs.filter((p) => p.id !== id),
+        subjects: s.subjects.map((sub) => sub.programId === id ? { ...sub, programId: null } : sub),
+      })),
+
+      setBatchDetails: (batch, programId, semester) => set((s) => ({
+        batchDetails: { ...s.batchDetails, [batch]: { programId, semester } },
+      })),
+
       loadConfig: (config) => set((s) => ({
         days: config.days ?? s.days,
         startTime: config.startTime ?? s.startTime,
@@ -191,6 +228,9 @@ export const useTimetableStore = create<TimetableState>()(
         breaks: config.breaks ?? s.breaks,
         events: config.events ?? s.events,
         solverOptions: config.options ?? s.solverOptions,
+        departments: config.departments ?? s.departments ?? [],
+        programs: config.programs ?? s.programs ?? [],
+        batchDetails: config.batchDetails ?? s.batchDetails ?? {},
       })),
 
       resetAll: () => set({ ...defaultState, sessionId: get().sessionId }),
@@ -214,6 +254,9 @@ export const useTimetableStore = create<TimetableState>()(
         breaks: state.breaks,
         events: state.events,
         solverOptions: state.solverOptions,
+        departments: state.departments,
+        programs: state.programs,
+        batchDetails: state.batchDetails,
         sessionId: state.sessionId,
       }),
     }

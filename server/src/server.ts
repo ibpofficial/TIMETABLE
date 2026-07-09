@@ -339,6 +339,229 @@ app.post('/api/ai/suggest-fix', aiRateLimiter, async (req, res) => {
   }
 });
 
+// ==================== AI Agent Tool-Calling Endpoint ====================
+// Supports structured tool calls so the AI can query live scheduling data
+
+app.post('/api/ai/agent', aiRateLimiter, async (req, res) => {
+  const { messages, storeState } = req.body;
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: 'Missing messages array.' });
+  }
+
+  // ── Tool Definitions ─────────────────────────────────────────────────
+  const tools = [
+    {
+      type: 'function',
+      function: {
+        name: 'getFacultyLoad',
+        description: 'Get the scheduled slot count and workload status for a specific faculty member by their ID or name.',
+        parameters: {
+          type: 'object',
+          properties: {
+            facultyName: { type: 'string', description: 'The name of the faculty member.' },
+          },
+          required: ['facultyName'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'findUnusedRoomSlots',
+        description: 'Find unused (free) time windows for a specific room or all rooms for a given day.',
+        parameters: {
+          type: 'object',
+          properties: {
+            roomName: { type: 'string', description: 'Room name or ID to check. Use "all" for overall summary.' },
+            day: { type: 'string', description: 'Day of week (Mon, Tue etc). Optional.' },
+          },
+          required: ['roomName'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'explainFailedSubject',
+        description: 'Get the specific constraint violation reason why a subject could not be scheduled.',
+        parameters: {
+          type: 'object',
+          properties: {
+            subjectName: { type: 'string', description: 'The name of the subject that failed to schedule.' },
+          },
+          required: ['subjectName'],
+        },
+      },
+    },
+    {
+      type: 'function',
+      function: {
+        name: 'getConflictReport',
+        description: 'Get a full summary of all scheduling conflicts and unplaced sessions in the current timetable.',
+        parameters: { type: 'object', properties: {}, required: [] },
+      },
+    },
+  ];
+
+  // ── Tool Execution ───────────────────────────────────────────────────
+  const executeTool = (name: string, args: any): string => {
+    const state = storeState || {};
+    const diagnostics: any[] = state.diagnostics || [];
+    const faculties: any[] = state.faculties || [];
+    const theoryRooms: any[] = state.theoryRooms || [];
+    const labRooms: any[] = state.labRooms || [];
+    const solution = state.solution;
+
+    if (name === 'getFacultyLoad') {
+      const fac = faculties.find((f: any) =>
+        f.name.toLowerCase().includes(args.facultyName.toLowerCase())
+      );
+      if (!fac) return `No faculty found matching "${args.facultyName}".`;
+
+      let slots = 0;
+      if (solution?.byBatch) {
+        const seen = new Set<string>();
+        Object.values(solution.byBatch).forEach((list: any) => {
+          list.forEach((a: any) => {
+            if (a.facultyId === fac.id && !seen.has(a.id)) {
+              seen.add(a.id);
+              slots += a.length || 1;
+            }
+          });
+        });
+      }
+      const pct = Math.round((slots / (fac.maxWeeklySlots || 1)) * 100);
+      const status = pct >= 90 ? 'OVERLOADED' : pct >= 70 ? 'HIGH' : 'NORMAL';
+      return `Faculty: ${fac.name} | Scheduled slots: ${slots} / ${fac.maxWeeklySlots} | Load: ${pct}% (${status}) | Leaves/month: ${fac.leaves}`;
+    }
+
+    if (name === 'findUnusedRoomSlots') {
+      const allRooms = [...theoryRooms, ...labRooms];
+      if (args.roomName === 'all') {
+        const stats = allRooms.map((r: any) => {
+          let used = 0;
+          if (solution?.byBatch) {
+            const seen = new Set<string>();
+            Object.values(solution.byBatch).forEach((list: any) => {
+              list.forEach((a: any) => {
+                if (a.room === r.name && !seen.has(a.id)) { seen.add(a.id); used++; }
+              });
+            });
+          }
+          const days = state.days?.length || 5;
+          const slotsPerDay = 6;
+          const total = days * slotsPerDay;
+          return `${r.name} (${r.type}): ${used}/${total} slots used (${Math.round((used/total)*100)}% utilization)`;
+        });
+        return stats.join('\n');
+      }
+      const room = allRooms.find((r: any) => r.name.toLowerCase().includes(args.roomName.toLowerCase()));
+      if (!room) return `No room found matching "${args.roomName}".`;
+      return `Room ${room.name}: capacity ${room.capacity}, type ${room.type}, equipment: ${room.equipment?.join(', ') || 'none'}`;
+    }
+
+    if (name === 'explainFailedSubject') {
+      if (diagnostics.length === 0) return 'No scheduling failures found — the timetable was generated successfully.';
+      const diag = diagnostics.find((d: any) =>
+        d.subject.toLowerCase().includes(args.subjectName.toLowerCase())
+      );
+      if (!diag) return `No scheduling failure found for "${args.subjectName}". Available failures: ${diagnostics.map((d: any) => d.subject).join(', ')}.`;
+      return `Subject: ${diag.subject}\nBatches: ${diag.batches.join(', ')}\nFaculty: ${diag.faculty}\nReason: ${diag.reason}`;
+    }
+
+    if (name === 'getConflictReport') {
+      if (diagnostics.length === 0) return 'No conflicts detected — the timetable was generated successfully with all sessions placed.';
+      return diagnostics.map((d: any, i: number) =>
+        `${i + 1}. [${d.subject}] for ${d.batches.join('+')} (${d.faculty}): ${d.reason}`
+      ).join('\n');
+    }
+
+    return 'Unknown tool.';
+  };
+
+  try {
+    const sysPrompt = [
+      'You are an expert college timetable scheduling assistant with access to real tools.',
+      'When asked about faculty workloads, room availability, scheduling failures, or conflicts, ALWAYS use the appropriate tool to get accurate data.',
+      'Keep answers concise, actionable, and timetable-specific.',
+      'Use emojis sparingly for visual clarity. Use bullet points for lists.',
+      'When suggesting fixes, be specific about which step in the wizard to go to and what to change.',
+      'Do NOT answer questions unrelated to the timetable or scheduling.',
+    ].join(' ');
+
+    const fullMessages = [{ role: 'system', content: sysPrompt }, ...messages];
+
+    // First call — may return tool_calls
+    const firstResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'http://localhost:3000',
+        'X-Title': 'IBP Timetable Agent',
+      },
+      body: JSON.stringify({
+        model: OPENROUTER_MODEL,
+        messages: fullMessages,
+        tools,
+        tool_choice: 'auto',
+        max_tokens: 800,
+        temperature: 0.2,
+      }),
+    });
+
+    const firstData = await firstResponse.json() as any;
+    const firstChoice = firstData.choices?.[0]?.message;
+
+    // If the model wants to call tools, execute them and re-call
+    if (firstChoice?.tool_calls && firstChoice.tool_calls.length > 0) {
+      const toolMessages: any[] = [
+        ...fullMessages,
+        firstChoice,
+      ];
+
+      for (const toolCall of firstChoice.tool_calls) {
+        let args: any = {};
+        try { args = JSON.parse(toolCall.function.arguments || '{}'); } catch {}
+        const result = executeTool(toolCall.function.name, args);
+        toolMessages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: result,
+        });
+      }
+
+      const secondResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'http://localhost:3000',
+          'X-Title': 'IBP Timetable Agent',
+        },
+        body: JSON.stringify({
+          model: OPENROUTER_MODEL,
+          messages: toolMessages,
+          max_tokens: 800,
+          temperature: 0.2,
+        }),
+      });
+
+      const secondData = await secondResponse.json() as any;
+      const reply = secondData.choices?.[0]?.message?.content || 'No response generated.';
+      return res.json({ reply, toolsUsed: firstChoice.tool_calls.map((t: any) => t.function.name) });
+    }
+
+    // Direct response (no tools needed)
+    const reply = firstChoice?.content || 'No response generated.';
+    return res.json({ reply, toolsUsed: [] });
+
+  } catch (error: any) {
+    console.error('AI Agent Endpoint Error:', error);
+    return res.status(500).json({ error: error.message || 'AI agent request failed.' });
+  }
+});
+
 // Start listening
 const server = app.listen(PORT, () => {
   console.log(`Backend server is running on http://localhost:${PORT}`);

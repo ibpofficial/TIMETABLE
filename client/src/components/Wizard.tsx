@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import { useTimetableStore, type WizardStep } from '../store/useTimetableStore';
 import { CheckIcon, ChevronRight } from 'lucide-react';
 import { Header } from './Header';
+import { Step0Departments } from './steps/Step0Departments';
 import { Step1Institution } from './steps/Step1Institution';
 import { Step2Batches } from './steps/Step2Batches';
 import { Step3Faculties } from './steps/Step3Faculties';
@@ -13,6 +14,7 @@ import { AiPanel } from './AiPanel';
 import { TimetableHealthChecker } from './TimetableHealthChecker';
 
 const STEPS = [
+  { id: 0, label: 'Departments' },
   { id: 1, label: 'Institution & Time' },
   { id: 2, label: 'Batches' },
   { id: 3, label: 'Faculties' },
@@ -40,6 +42,7 @@ export function Wizard() {
 
   const renderStep = () => {
     switch (currentStep) {
+      case 0 as WizardStep: return <Step0Departments />;
       case 1: return <Step1Institution />;
       case 2: return <Step2Batches />;
       case 3: return <Step3Faculties />;
@@ -67,7 +70,7 @@ export function Wizard() {
               {STEPS.map((step, idx) => {
                 const isActive = step.id === currentStep;
                 const isDone = step.id < currentStep;
-                const isAccessible = step.id <= currentStep;
+                const isAccessible = step.id <= currentStep || step.id === 0;
 
                 return (
                   <li

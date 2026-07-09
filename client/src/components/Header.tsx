@@ -24,11 +24,15 @@ export function Header() {
     maxClassesPerDay: store.maxClassesPerDay,
     rooms: { theoryList: store.theoryRooms, labList: store.labRooms },
     batches: store.batches,
+    batchSizes: store.batchSizes,
     faculties: store.faculties,
     subjects: store.subjects,
     breaks: store.breaks,
     events: store.events,
     options: store.solverOptions,
+    departments: store.departments,
+    programs: store.programs,
+    batchDetails: store.batchDetails,
   });
 
   // ── Local JSON Export ────────────────────────────────────────────

@@ -12,6 +12,18 @@ export interface InstitutionSettings {
   maxClassesPerDay: number;
 }
 
+export interface Department {
+  id: string;
+  name: string;
+  code: string;
+}
+
+export interface Program {
+  id: string;
+  name: string;
+  departmentId: string;
+}
+
 export interface Room {
   id: string;
   name: string;
@@ -21,6 +33,7 @@ export interface Room {
   floor?: number;
   roomNumber?: string;
   equipment?: string[];
+  departmentId?: string | null; // Null/undefined means shared college-wide
 }
 
 export interface Faculty {
@@ -30,6 +43,7 @@ export interface Faculty {
   maxWeeklySlots: number;
   maxDailySlots?: number; // Optional hourly/slot daily limit
   unavail: UnavailabilityWindow[];
+  departmentId?: string | null; // Null/undefined means shared college-wide
 }
 
 export interface Subject {
@@ -48,6 +62,8 @@ export interface Subject {
   capacityRequirement?: number;
   preferredRoomTypes?: string[];
   requiredEquipment?: string[];
+  departmentId?: string | null;
+  programId?: string | null;
 }
 
 export interface Break {
@@ -86,6 +102,9 @@ export interface SchedulerInputState {
   breaks: Break[];
   events: FixedEvent[];
   options: SolverOptions;
+  departments?: Department[];
+  programs?: Program[];
+  batchDetails?: Record<string, { programId: string; semester: number }>;
 }
 
 export interface Timeslot {

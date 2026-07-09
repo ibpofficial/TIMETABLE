@@ -1,398 +1,372 @@
-import { useEffect, useState, useRef } from 'react';
-import { Sparkles, RefreshCw, Loader2, Send, Minimize2, Maximize2 } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import {
+  Sparkles, Send, Minimize2, Maximize2, Loader2,
+  Zap, Users, Building, AlertTriangle, Bot
+} from 'lucide-react';
 import { useTimetableStore } from '../store/useTimetableStore';
-import { fetchAiTip } from '../api/client';
+import { fetchAiTip, fetchAiAgent } from '../api/client';
 import { Card } from './ui';
 
-const BACKEND_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ? `${window.location.protocol}//${window.location.hostname}:5000`
-  : 'http://localhost:5000';
+// ── Types ────────────────────────────────────────────────────────────────────
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  toolsUsed?: string[];
+  timestamp?: Date;
+}
 
+// ── Inline markdown renderer ─────────────────────────────────────────────────
+function RenderMarkdown({ text }: { text: string }) {
+  const lines = text.split('\n');
+  return (
+    <div className="space-y-1.5 text-sm leading-relaxed">
+      {lines.map((line, i) => {
+        if (!line.trim()) return <div key={i} className="h-1" />;
+        if (/^###\s/.test(line)) return (
+          <p key={i} className="text-[11px] font-bold uppercase tracking-widest text-brand/80 border-b border-brand/15 pb-0.5 mt-2">{line.replace(/^###\s/, '')}</p>
+        );
+        if (/^##\s/.test(line)) return (
+          <p key={i} className="text-xs font-extrabold text-brand-light mt-2">{line.replace(/^##\s/, '')}</p>
+        );
+        if (/^#\s/.test(line)) return (
+          <p key={i} className="font-black text-slate-100 text-[13px] mt-2">{line.replace(/^#\s/, '')}</p>
+        );
+        const isBullet = /^[\*\-\•]\s/.test(line.trimStart());
+        const isNumbered = /^\d+\.\s/.test(line.trimStart());
+        const renderInline = (str: string) => {
+          const parts = str.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+          return parts.map((p, j) => {
+            if (/^\*\*/.test(p)) return <strong key={j} className="font-bold text-slate-100">{p.slice(2, -2)}</strong>;
+            if (/^`/.test(p)) return <code key={j} className="bg-white/10 px-1 rounded text-[11px] font-mono text-brand-light">{p.slice(1, -1)}</code>;
+            return <span key={j}>{p.replace(/->/g, ' ➔ ')}</span>;
+          });
+        };
+        if (isBullet) return (
+          <div key={i} className="flex gap-2 items-start">
+            <span className="text-brand mt-0.5 shrink-0">▸</span>
+            <span className="text-slate-300">{renderInline(line.replace(/^[\s]*[\*\-\•]\s/, ''))}</span>
+          </div>
+        );
+        if (isNumbered) return (
+          <div key={i} className="flex gap-2 items-start">
+            <span className="text-brand/70 font-bold text-[11px] shrink-0 mt-0.5">{line.match(/^\d+/)?.[0]}.</span>
+            <span className="text-slate-300">{renderInline(line.replace(/^\d+\.\s/, ''))}</span>
+          </div>
+        );
+        return <p key={i} className="text-slate-300">{renderInline(line)}</p>;
+      })}
+    </div>
+  );
+}
+
+// ── Quick action buttons ─────────────────────────────────────────────────────
+const QUICK_ACTIONS = [
+  { label: 'Check all conflicts', icon: <AlertTriangle size={11} />, msg: 'Run a full conflict report on the current timetable.' },
+  { label: 'Faculty workloads', icon: <Users size={11} />, msg: 'Show me the workload and busyness ratios for all faculty members.' },
+  { label: 'Room utilization', icon: <Building size={11} />, msg: 'Check utilization rates for all rooms — which are over/under-used?' },
+  { label: 'Suggest improvements', icon: <Zap size={11} />, msg: 'Based on current constraints, what are the top 3 improvements I can make before generating?' },
+];
+
+// ── Main Component ───────────────────────────────────────────────────────────
 export function AiPanel() {
   const store = useTimetableStore();
   const { currentStep } = store;
 
-  // Panel state
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activeTab, setActiveTab] = useState<'coach' | 'chat'>('coach');
-  
-  // Coach states
-  const [tip, setTip] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'chat' | 'coach'>('chat');
+
+  // Chat state
+  const [messages, setMessages] = useState<ChatMessage[]>([{
+    role: 'assistant',
+    content: '### 👋 Welcome to AI Scheduling Agent\n\nI can query your **live scheduling data** to help you:\n* Check faculty workloads and room utilization\n* Explain exactly why a subject failed to schedule\n* Suggest concrete fixes for conflicts\n\nUse the quick buttons below, or ask me anything about your timetable!',
+    timestamp: new Date(),
+  }]);
+  const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sessionCalls, setSessionCalls] = useState(0);
+  const MAX_CALLS = 60;
+
+  // Coach state
+  const [tip, setTip] = useState('');
+  const [tipLoading, setTipLoading] = useState(false);
   const [tipLoaded, setTipLoaded] = useState(false);
 
-  // Chat states
-  const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([
-    { role: 'assistant', content: "### Welcome to Copilot Chat 🗓️\n* I'm your context-aware timetable assistant.\n* Ask me to **check constraints** or **recommend sizes**.\n* I answer queries *only* regarding your timetable." }
-  ]);
-  const [chatInput, setChatInput] = useState('');
-  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const cacheRef = useRef<Record<number, string>>({});
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
-
-  // Reset coach tip loaded state on step change (no auto-loads, wait for user trigger)
-  useEffect(() => {
-    setTipLoaded(false);
-    setTip('');
-  }, [currentStep]);
+  // Reset coach on step change
+  useEffect(() => { setTipLoaded(false); setTip(''); }, [currentStep]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, chatLoading]);
+  }, [messages, loading]);
 
-  // Custom Inline Markdown Parsing & Styling Engine
-  const parseInlineMarkdown = (str: string) => {
-    let txt = str.replace(/->/g, ' ➔ ');
-    const parts = txt.split('**');
-    return parts.map((part, idx) => {
-      if (idx % 2 === 1) {
-        return <strong key={idx} className="font-extrabold text-brand-light">{part}</strong>;
-      }
-      return part;
-    });
-  };
+  // Build store state snapshot to send to agent
+  const buildStoreSnapshot = () => ({
+    currentStep,
+    days: store.days,
+    startTime: store.startTime,
+    endTime: store.endTime,
+    slotLength: store.slotLength,
+    maxClassesPerDay: store.maxClassesPerDay,
+    theoryRooms: store.theoryRooms,
+    labRooms: store.labRooms,
+    batches: store.batches,
+    batchSizes: store.batchSizes,
+    faculties: store.faculties,
+    subjects: store.subjects,
+    departments: store.departments,
+    programs: store.programs,
+    diagnostics: store.diagnostics,
+    solution: store.solution,
+  });
 
-  const renderContent = (text: string) => {
-    return text.split('\n').filter(Boolean).map((line, i) => {
-      let content = line.trim();
-      
-      // 1. Headers
-      if (content.startsWith('### ')) {
-        return (
-          <h4 key={i} className="font-bold text-slate-100 mt-3 mb-1 text-xs border-l-2 border-brand pl-2">
-            {parseInlineMarkdown(content.substring(4))}
-          </h4>
-        );
-      }
-      if (content.startsWith('## ') || content.startsWith('# ')) {
-        const depth = content.startsWith('## ') ? 3 : 2;
-        return (
-          <h3 key={i} className="font-extrabold text-brand-light mt-3.5 mb-1.5 text-xs uppercase tracking-wider">
-            {parseInlineMarkdown(content.substring(depth === 3 ? 3 : 2))}
-          </h3>
-        );
-      }
-
-      // 2. Bullet lists
-      if (content.startsWith('* ') || content.startsWith('- ')) {
-        return (
-          <div key={i} className="flex gap-2 items-start pl-2.5 text-xs text-slate-300 my-1 font-medium leading-relaxed">
-            <span className="text-brand shrink-0">➔</span>
-            <span>{parseInlineMarkdown(content.substring(2))}</span>
-          </div>
-        );
-      }
-
-      // 3. Numbered lists (e.g. "1. ")
-      const numMatch = content.match(/^(\d+)\.\s(.*)/);
-      if (numMatch) {
-        return (
-          <div key={i} className="flex gap-2 items-start pl-2.5 text-xs text-slate-300 my-1 font-medium leading-relaxed font-mono">
-            <span className="text-brand-light font-bold">{numMatch[1]}.</span>
-            <span>{parseInlineMarkdown(numMatch[2])}</span>
-          </div>
-        );
-      }
-
-      // 4. Standard Paragraph
-      return (
-        <p key={i} className="text-xs text-slate-300 my-1.5 leading-relaxed font-medium">
-          {parseInlineMarkdown(content)}
-        </p>
-      );
-    });
-  };
-
-  const loadTip = async (force = false) => {
-    if (!force && cacheRef.current[currentStep]) {
-      setTip(cacheRef.current[currentStep]);
-      setTipLoaded(true);
+  const sendMessage = async (text: string) => {
+    const userText = text.trim();
+    if (!userText || loading) return;
+    if (sessionCalls >= MAX_CALLS) {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: '⚠️ **Session limit reached** — you have used your 60 AI queries for this session. Please reload to reset.',
+        timestamp: new Date(),
+      }]);
       return;
     }
 
+    setInput('');
+    const userMsg: ChatMessage = { role: 'user', content: userText, timestamp: new Date() };
+    setMessages(prev => [...prev, userMsg]);
     setLoading(true);
-    
-    const context = {
-      days: store.days,
-      startTime: store.startTime,
-      endTime: store.endTime,
-      slotLength: store.slotLength,
-      maxClassesPerDay: store.maxClassesPerDay,
-      theoryRoomsCount: store.theoryRooms.length,
-      labRoomsCount: store.labRooms.length,
-      batchesCount: store.batches.length,
-      facultiesCount: store.faculties.length,
-      subjectsCount: store.subjects.length,
-      breaksCount: store.breaks.length,
-      eventsCount: store.events.length,
-    };
-
-    const stepLabel =
-      currentStep === 1 ? 'Institution & Infrastructure' :
-      currentStep === 2 ? 'Student Batches' :
-      currentStep === 3 ? 'Faculty Constraints' :
-      currentStep === 4 ? 'Subjects & Course constraints' :
-      currentStep === 5 ? 'Breaks & Fixed Events' :
-      currentStep === 6 ? 'Review & Solver Settings' :
-      'Results view';
+    setSessionCalls(c => c + 1);
 
     try {
-      const result = await fetchAiTip(
-        'step_changed',
-        { currentStep, stepLabel },
-        context
-      );
-      
-      setTip(result.reply);
-      cacheRef.current[currentStep] = result.reply;
-      setTipLoaded(true);
-    } catch (err: any) {
-      console.error('AI Tip loading error:', err);
-      const fallback = currentStep === 1 
-        ? '💡 **Tip**: Aim to provide a slot size (e.g. 60m) that aligns with standard period intervals.\n* Ensure you configure enough classrooms so multiple batches can have classes in parallel.'
-        : currentStep === 2
-        ? '💡 **Tip**: Keep batch names distinct and simple.\n* You will associate subjects and students with these groups in subsequent steps.'
-        : currentStep === 3
-        ? '💡 **Tip**: Add unavailability constraints only where necessary.\n* Over-blocking faculty slots reduces the solver\'s search domain, increasing likelihood of conflict failures.'
-        : currentStep === 4
-        ? '💡 **Tip**: When setting up practical labs of session length > 1, make sure you have sufficient lab room availability configured in Step 1.'
-        : currentStep === 5
-        ? '💡 **Tip**: Place lunch breaks in the middle of instruction hours.\n* Fixed events will book all student batches globally, preventing subject assignments in those slots.'
-        : currentStep === 6
-        ? '💡 **Tip**: If generation fails, reduce weekly classes, add more classrooms, or use the AI suggest panel in Results to locate bottlenecks.'
-        : '💡 **Tip**: Print this page to get a clean layout or download CSV data to edit your scheduling setup locally in sheets.';
+      // Build conversation history (last 8 messages for context)
+      const history = [...messages.slice(-8), userMsg].map(m => ({
+        role: m.role,
+        content: m.content,
+      }));
 
-      setTip(fallback);
-      cacheRef.current[currentStep] = fallback;
-      setTipLoaded(true);
+      const { reply, toolsUsed } = await fetchAiAgent(history, buildStoreSnapshot());
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: reply,
+        toolsUsed,
+        timestamp: new Date(),
+      }]);
+    } catch (err: any) {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `❌ **Error**: ${err.message || 'Failed to reach the AI agent. Ensure the backend is running.'}`,
+        timestamp: new Date(),
+      }]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSendChat = async () => {
-    const q = chatInput.trim();
-    if (!q) return;
-
-    const newMsgs = [...messages, { role: 'user' as const, content: q }];
-    setMessages(newMsgs);
-    setChatInput('');
-    setChatLoading(true);
-
-    const context = {
-      days: store.days,
-      startTime: store.startTime,
-      endTime: store.endTime,
-      slotLength: store.slotLength,
-      maxClassesPerDay: store.maxClassesPerDay,
-      rooms: {
-        theoryList: store.theoryRooms,
-        labList: store.labRooms
-      },
-      batches: store.batches,
-      batchSizes: store.batchSizes || {},
-      faculties: store.faculties,
-      subjects: store.subjects,
-      breaks: store.breaks,
-      events: store.events,
-      hasSolution: !!store.solution
-    };
-
-    const sysPrompt = [
-      'You are a conversational timetable AI assistant embedded in a university timetable builder.',
-      'CRITICAL: If asked who created you or who made you, you MUST answer: "ISHANT UPADHYAY created me". Do not say anyone else.',
-      'Format output using markdown headings with hashtags (# or ##) and bullet lists with asterisks (*).',
-      'Use bold (**text**) for key terms and pointing arrows (->) for transitions.',
-      'Include contextual emojis for emphasis.',
-      'Keep responses extremely brief, structured, and easy to read. Avoid long paragraphs.',
-      'Answer questions ONLY about the current timetable configuration and scheduling mathematical logic.'
-    ].join(' ');
-
-    const payload = [
-      { role: 'system' as const, content: sysPrompt },
-      ...newMsgs.map(m => ({ role: m.role, content: m.content })),
-      { role: 'user' as const, content: `Current configuration context: ${JSON.stringify(context)}` }
-    ];
-
+  const loadCoachTip = async () => {
+    if (tipLoading) return;
+    setTipLoading(true);
     try {
-      const res = await fetch(`${BACKEND_BASE}/api/ai/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: payload })
-      });
-      if (!res.ok) throw new Error('AI request failed.');
-      const data = await res.json();
-      setMessages([...newMsgs, { role: 'assistant' as const, content: data.reply }]);
+      const context = {
+        days: store.days, startTime: store.startTime, endTime: store.endTime,
+        slotLength: store.slotLength, maxClassesPerDay: store.maxClassesPerDay,
+        theoryRoomsCount: store.theoryRooms.length, labRoomsCount: store.labRooms.length,
+        batchesCount: store.batches.length, facultiesCount: store.faculties.length,
+        subjectsCount: store.subjects.length, departmentsCount: store.departments.length,
+      };
+      const res = await fetchAiTip(`step_${currentStep}`, {}, context);
+      setTip(res.reply);
+      setTipLoaded(true);
     } catch (err: any) {
-      console.error(err);
-      setMessages([...newMsgs, { role: 'assistant' as const, content: '⚠️ Failed to connect to AI server. Please make sure the backend is running.' }]);
+      setTip(`⚠️ Could not load tip: ${err.message}`);
+      setTipLoaded(true);
     } finally {
-      setChatLoading(false);
+      setTipLoading(false);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSendChat();
-  };
-
-  const stepLabel =
-    currentStep === 1 ? 'Institution & Time' :
-    currentStep === 2 ? 'Student Batches' :
-    currentStep === 3 ? 'Faculty Constraints' :
-    currentStep === 4 ? 'Subjects & Courses' :
-    currentStep === 5 ? 'Breaks & Fixed Events' :
-    currentStep === 6 ? 'Review & Solver Settings' :
-    'Results Solution';
-
-  // ── Render Collapsed State ──────────────────────────────────────────
+  // ── Collapsed state ──────────────────────────────────────────────────────
   if (isCollapsed) {
     return (
-      <div
-        className="no-print w-full cursor-pointer"
-        onClick={() => setIsCollapsed(false)}
-      >
-        <Card className="border-[#28305a]/60 bg-gradient-to-br from-[#0e1430] to-[#0a0f24] relative overflow-hidden flex flex-col p-3.5 w-full hover:border-brand/30 transition-all">
-          <div className="flex justify-between items-center w-full">
-            <div className="flex items-center gap-2.5">
-              <div className="w-2 h-2 rounded-full bg-brand animate-pulse shrink-0" />
-              <h3 className="text-xs font-bold text-slate-200 flex items-center gap-1.5 uppercase tracking-wider">
-                ✨ AI Scheduling Copilot & Assistant (Collapsed)
-              </h3>
-            </div>
-            <button className="text-[10px] font-bold text-brand hover:text-brand-light flex items-center gap-1">
-              Expand Panel <Maximize2 size={10} />
-            </button>
+      <div className="no-print w-full cursor-pointer" onClick={() => setIsCollapsed(false)}>
+        <Card className="border-[#28305a]/60 bg-gradient-to-r from-[#0e1430] to-[#0a0f24] flex flex-row items-center justify-between px-4 py-2.5 w-full hover:border-brand/30 transition-all">
+          <div className="flex items-center gap-2.5">
+            <Bot size={14} className="text-brand animate-pulse" />
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">AI Scheduling Agent</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${sessionCalls >= MAX_CALLS ? 'bg-red-500/20 text-red-400' : 'bg-brand/20 text-brand'}`}>
+              {sessionCalls}/{MAX_CALLS} queries
+            </span>
           </div>
+          <button className="text-[10px] font-bold text-brand hover:text-brand-light flex items-center gap-1">
+            Expand <Maximize2 size={10} />
+          </button>
         </Card>
       </div>
     );
   }
 
-  // ── Render Expanded State ───────────────────────────────────────────
+  // ── Expanded state ───────────────────────────────────────────────────────
   return (
-    <Card className="border-[#28305a]/60 bg-gradient-to-br from-[#0e1430] to-[#0a0f24] relative overflow-hidden flex flex-col min-h-[420px] max-h-[600px] p-5 w-full">
-      {/* Decorative background glow */}
-      <div className="absolute -right-16 -top-16 w-48 h-48 rounded-full bg-brand/10 blur-2xl pointer-events-none" />
+    <Card className="border-[#28305a]/60 bg-gradient-to-br from-[#0e1430] to-[#0a0f24] relative overflow-hidden flex flex-col w-full no-print min-h-[420px]">
+      {/* Glow */}
+      <div className="absolute top-0 right-0 w-48 h-48 bg-brand/5 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Header and Toggle Tabs */}
-      <div className="flex justify-between items-center mb-4 border-b border-white/5 pb-2.5 shrink-0">
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveTab('coach')}
-            className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-colors
-              ${activeTab === 'coach' ? 'bg-brand/25 text-brand-light border border-brand/20' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            Coach Instructions
-          </button>
-          <button
-            onClick={() => setActiveTab('chat')}
-            className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-lg transition-colors
-              ${activeTab === 'chat' ? 'bg-brand/25 text-brand-light border border-brand/20' : 'text-slate-500 hover:text-slate-300'}`}
-          >
-            Interactive AI Copilot Chat
-          </button>
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3 shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand to-brand-light flex items-center justify-center shadow-md">
+            <Bot size={13} className="text-white" />
+          </div>
+          <div>
+            <p className="text-xs font-black text-slate-200 uppercase tracking-widest">AI Scheduling Agent</p>
+            <p className="text-[10px] text-slate-500">Tool-calling · Context-aware · Live data</p>
+          </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          {activeTab === 'coach' && tipLoaded && (
-            <button
-              onClick={() => loadTip(true)}
-              disabled={loading}
-              className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-50"
-              title="Refresh AI suggestions"
-            >
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
-            </button>
-          )}
-          <button
-            onClick={() => setIsCollapsed(true)}
-            className="p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors"
-            title="Minimize AI Panel"
-          >
-            <Minimize2 size={12} />
+        <div className="flex items-center gap-3">
+          <span className={`text-[10px] px-2 py-1 rounded-full font-bold border ${sessionCalls >= MAX_CALLS ? 'bg-red-500/10 text-red-400 border-red-500/20' : sessionCalls > 40 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-brand/10 text-brand border-brand/20'}`}>
+            {sessionCalls}/{MAX_CALLS} queries
+          </span>
+          {/* Tabs */}
+          <div className="flex bg-white/[0.04] rounded-lg p-0.5">
+            {(['chat', 'coach'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1 rounded-md text-[11px] font-bold capitalize transition-all ${activeTab === tab ? 'bg-brand/20 text-brand' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                {tab === 'chat' ? '💬 Chat' : '🎓 Coach'}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setIsCollapsed(true)} className="p-1.5 rounded-lg hover:bg-white/[0.06] text-slate-500 hover:text-slate-300 transition-colors" title="Collapse">
+            <Minimize2 size={14} />
           </button>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto min-h-[260px] flex flex-col">
-        {activeTab === 'coach' ? (
-          <div className="flex flex-col justify-center py-4 flex-1">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center gap-2 py-4 text-slate-500">
-                <Loader2 className="animate-spin text-brand/60" size={18} />
-                <span className="text-[10px] font-mono tracking-wider">Analyzing state...</span>
+      {/* ── Chat Tab ──────────────────────────────────────────────────── */}
+      {activeTab === 'chat' && (
+        <>
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-[240px] max-h-[340px]">
+            {messages.map((msg, i) => (
+              <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs shrink-0 ${msg.role === 'user' ? 'bg-brand/20 text-brand font-black' : 'bg-white/[0.06] text-slate-400'}`}>
+                  {msg.role === 'user' ? 'U' : <Bot size={12} />}
+                </div>
+                <div className={`max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                  <div className={`rounded-2xl px-3.5 py-2.5 ${msg.role === 'user' ? 'bg-brand/15 border border-brand/20 rounded-tr-sm' : 'bg-white/[0.04] border border-white/[0.06] rounded-tl-sm'}`}>
+                    <RenderMarkdown text={msg.content} />
+                  </div>
+                  {msg.toolsUsed && msg.toolsUsed.length > 0 && (
+                    <div className="flex gap-1 flex-wrap">
+                      {msg.toolsUsed.map((t, j) => (
+                        <span key={j} className="text-[9px] font-mono bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full">
+                          🔧 {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            ) : !tipLoaded ? (
-              <div className="flex flex-col items-center justify-center gap-4 py-8 text-center">
-                <p className="text-xs text-slate-400 max-w-sm leading-normal">
-                  Coach suggestions analyze your scheduling setup for Step {currentStep} ({stepLabel}) to identify resource blockages and optimization opportunities.
-                </p>
-                <button
-                  onClick={() => loadTip(false)}
-                  className="bg-brand/20 border border-brand/35 text-brand-light hover:bg-brand/30 text-xs px-4 py-2.5 rounded-xl font-bold transition-all shadow-md shadow-brand/10 flex items-center gap-2"
-                >
-                  <Sparkles size={13} />
-                  Load AI Coach Instructions
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2 text-xs leading-relaxed text-slate-300 font-medium animate-fade-in">
-                {renderContent(tip)}
+            ))}
+            {loading && (
+              <div className="flex gap-2.5">
+                <div className="w-7 h-7 rounded-xl bg-white/[0.06] flex items-center justify-center">
+                  <Bot size={12} className="text-slate-400" />
+                </div>
+                <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
+                  <Loader2 size={13} className="animate-spin text-brand" />
+                  <span className="text-xs text-slate-400 italic">Querying live data…</span>
+                </div>
               </div>
             )}
+            <div ref={chatEndRef} />
           </div>
-        ) : (
-          <div className="flex flex-col flex-1">
-            <div className="flex-1 overflow-y-auto space-y-2.5 mb-3 pr-1 max-h-[380px]">
-              {messages.map((m, i) => (
-                <div
-                  key={i}
-                  className={`p-3 rounded-xl text-xs max-w-[85%] leading-normal
-                    ${m.role === 'user'
-                      ? 'bg-slate-800 text-slate-100 ml-auto'
-                      : 'bg-brand/10 border border-brand/20 text-slate-200'}`}
-                >
-                  {renderContent(m.content)}
-                </div>
-              ))}
-              {chatLoading && (
-                <div className="bg-brand/5 border border-brand/10 p-2.5 rounded-xl text-xs max-w-[85%] text-slate-400 flex items-center gap-1.5">
-                  <Loader2 size={12} className="animate-spin text-brand" /> Copilot is thinking...
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
 
-            {/* Input form */}
-            <div className="flex gap-2 border-t border-white/5 pt-3 mt-auto shrink-0 font-sans">
-              <input
-                type="text"
-                value={chatInput}
-                onChange={(e) => setChatInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask your timetable copilot a question or ask it to check constraints..."
-                className="flex-1 bg-[#121832] border border-white/10 rounded-lg px-3.5 py-2 text-xs text-slate-200 focus:outline-none focus:border-brand font-medium"
-              />
+          {/* Quick action buttons */}
+          <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+            {QUICK_ACTIONS.map((qa, i) => (
               <button
-                onClick={handleSendChat}
-                disabled={chatLoading}
-                className="bg-brand text-white px-3.5 py-2 rounded-lg hover:bg-brand-light transition-colors disabled:opacity-50 flex items-center justify-center"
+                key={i}
+                onClick={() => sendMessage(qa.msg)}
+                disabled={loading || sessionCalls >= MAX_CALLS}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.07] text-[11px] text-slate-400 hover:text-slate-200 hover:bg-white/[0.07] hover:border-brand/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <Send size={12} />
+                {qa.icon}
+                {qa.label}
               </button>
-            </div>
+            ))}
           </div>
-        )}
-      </div>
 
-      <div className="mt-2 pt-2 border-t border-white/[0.04] flex items-center justify-between text-[8px] text-slate-600 shrink-0">
-        <span className="flex items-center gap-1">
-          <Sparkles size={8} /> Active context aware
-        </span>
-        <span>Step {currentStep} of 7</span>
-      </div>
+          {/* Input */}
+          <div className="px-4 pb-4 pt-1 flex gap-2 items-center border-t border-white/[0.06] shrink-0">
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+              placeholder={sessionCalls >= MAX_CALLS ? 'Session limit reached.' : 'Ask about faculty loads, room conflicts, scheduling failures…'}
+              disabled={loading || sessionCalls >= MAX_CALLS}
+              className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3.5 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-brand/40 focus:border-brand/30 transition-all disabled:opacity-50"
+            />
+            <button
+              onClick={() => sendMessage(input)}
+              disabled={!input.trim() || loading || sessionCalls >= MAX_CALLS}
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity shadow-md"
+              title="Send"
+            >
+              {loading ? <Loader2 size={15} className="animate-spin text-white" /> : <Send size={15} className="text-white" />}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* ── Coach Tab ─────────────────────────────────────────────────── */}
+      {activeTab === 'coach' && (
+        <div className="flex-1 flex flex-col gap-3 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-slate-200">Step {currentStep} Coach Instructions</p>
+              <p className="text-xs text-slate-500">On-demand tips for the current wizard step</p>
+            </div>
+            <button
+              onClick={loadCoachTip}
+              disabled={tipLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand/10 border border-brand/20 text-xs font-bold text-brand hover:bg-brand/20 transition-all disabled:opacity-50"
+            >
+              {tipLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+              {tipLoaded ? 'Refresh Tips' : 'Load AI Coach Tips'}
+            </button>
+          </div>
+
+          {!tipLoaded && !tipLoading && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center">
+                <Sparkles size={20} className="text-brand" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-300">Coach Tips Not Loaded</p>
+                <p className="text-xs text-slate-500 mt-1">Click "Load AI Coach Tips" to get contextual advice for Step {currentStep}</p>
+              </div>
+            </div>
+          )}
+
+          {tipLoading && (
+            <div className="flex-1 flex items-center justify-center gap-2 text-slate-400">
+              <Loader2 size={18} className="animate-spin text-brand" />
+              <span className="text-sm">Generating step-specific coach instructions…</span>
+            </div>
+          )}
+
+          {tipLoaded && tip && (
+            <div className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 overflow-y-auto">
+              <RenderMarkdown text={tip} />
+            </div>
+          )}
+        </div>
+      )}
     </Card>
   );
 }
