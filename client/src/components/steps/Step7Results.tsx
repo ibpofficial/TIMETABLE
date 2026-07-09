@@ -3,8 +3,10 @@ import { Printer, Download, Search, Sparkles, AlertCircle, Calendar, Users, Home
 import { toast } from 'sonner';
 import { useTimetableStore } from '../../store/useTimetableStore';
 import { Button, Card, SectionHeader, Select, Input, Badge, FormField } from '../ui';
-import { saveTimetable, fetchAiSuggestFix } from '../../api/client';
+import { fetchAiSuggestFix } from '../../api/client';
+import { fsSaveTimetable } from '../../lib/firestore';
 import type { Assignment, ScheduleSolution } from '../../types';
+
 
 export function Step7Results() {
   const store = useTimetableStore();
@@ -275,14 +277,14 @@ export function Step7Results() {
     toast.success('CSV schedule exported!');
   };
 
-  // ── Cloud Save Timetable ──────────────────────────────────────────
+  // ── Cloud Save Timetable (Firebase) ──────────────────────────────
   const handleCloudSaveTimetable = async () => {
     const name = prompt('Enter a name for this timetable schedule:')?.trim();
     if (!name) return;
     setSaving(true);
     try {
-      await saveTimetable(name, store.savedConfigId || 'local', solution, store.sessionId);
-      toast.success(`Saved timetable "${name}" to cloud!`);
+      await fsSaveTimetable(name, store.savedConfigId || 'local', solution, store.sessionId);
+      toast.success(`Saved timetable "${name}" to Firebase! 🔥`);
     } catch (err: any) {
       toast.error('Failed to save timetable: ' + err.message);
     } finally {

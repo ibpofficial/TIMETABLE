@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Saved timetable configurations — readable/writable by anyone
+    // (no auth needed for this internal tool)
+    match /savedConfigs/{docId} {
+      allow read, write: if true;
+    }
+
+    // Saved timetable solutions — readable/writable by anyone
+    match /savedTimetables/{docId} {
+      allow read, write: if true;
+    }
+  }
+}

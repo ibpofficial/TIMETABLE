@@ -1,4 +1,10 @@
-import type { SchedulerConfig, JobState, SavedConfig, ScheduleSolution } from '../types';
+/**
+ * Express API client — only handles solver jobs and AI proxy calls.
+ * All data persistence (configs, timetables) is now done directly
+ * through Firebase Firestore via src/lib/firestore.ts.
+ */
+
+import type { JobState, SchedulerConfig } from '../types';
 
 const BASE = '/api';
 
@@ -14,7 +20,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-// ── Schedule ──────────────────────────────────────────
+// ── Solver Jobs ─────────────────────────────────────────────────────────────
 export async function startGeneration(state: SchedulerConfig): Promise<{ jobId: string }> {
   return request('/schedule/generate', { method: 'POST', body: JSON.stringify(state) });
 }
@@ -27,29 +33,7 @@ export async function cancelJob(jobId: string): Promise<{ message: string }> {
   return request(`/schedule/jobs/${jobId}/cancel`, { method: 'POST' });
 }
 
-// ── Saved Configs ──────────────────────────────────────
-export async function listConfigs(sessionId: string): Promise<SavedConfig[]> {
-  return request(`/configs?sessionId=${encodeURIComponent(sessionId)}`);
-}
-
-export async function saveConfig(name: string, data: SchedulerConfig, sessionId: string): Promise<{ id: string; name: string }> {
-  return request('/configs', { method: 'POST', body: JSON.stringify({ name, data, sessionId }) });
-}
-
-export async function loadConfig(id: string): Promise<{ id: string; name: string; data: SchedulerConfig }> {
-  return request(`/configs/${id}`);
-}
-
-export async function deleteConfig(id: string): Promise<{ success: boolean }> {
-  return request(`/configs/${id}`, { method: 'DELETE' });
-}
-
-// ── Saved Timetables ───────────────────────────────────
-export async function saveTimetable(name: string, configId: string, data: ScheduleSolution, sessionId: string) {
-  return request('/timetables', { method: 'POST', body: JSON.stringify({ name, configId, data, sessionId }) });
-}
-
-// ── AI ─────────────────────────────────────────────────
+// ── AI Copilot ─────────────────────────────────────────────────────────────
 export async function fetchAiTip(eventName: string, payload: unknown, context: unknown): Promise<{ reply: string }> {
   return request('/ai/tip', { method: 'POST', body: JSON.stringify({ eventName, payload, context }) });
 }
@@ -64,4 +48,3 @@ export async function fetchAiAgent(
 ): Promise<{ reply: string; toolsUsed: string[] }> {
   return request('/ai/agent', { method: 'POST', body: JSON.stringify({ messages, storeState }) });
 }
-
