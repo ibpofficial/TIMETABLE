@@ -283,6 +283,22 @@ app.post('/api/ai/tip', aiRateLimiter, async (req, res) => {
   }
 });
 
+// Endpoint for general AI chat proxy (used by frontend)
+app.post('/api/ai/chat', aiRateLimiter, async (req, res) => {
+  const { messages, maxTokens, temperature } = req.body;
+  if (!messages || !Array.isArray(messages)) {
+    return res.status(400).json({ error: 'Missing or invalid messages parameter.' });
+  }
+
+  try {
+    const reply = await fetchOpenRouterAI(messages, maxTokens, temperature);
+    return res.json({ reply });
+  } catch (error: any) {
+    console.error('AI Chat Endpoint Error:', error);
+    return res.status(500).json({ error: error.message || 'AI request failed.' });
+  }
+});
+
 // Endpoint for smart fix suggestions on solver failure
 app.post('/api/ai/suggest-fix', aiRateLimiter, async (req, res) => {
   const { diagnostics, context } = req.body;

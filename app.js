@@ -2248,72 +2248,34 @@ try{
 
 
 
-/* ===== AI via OpenRouter (DeepSeek) ===== */
-let OPENROUTER_API_KEY = localStorage.getItem("OPENROUTER_API_KEY") || "";
-const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL = "deepseek/deepseek-chat"; // works well for reasoning & quick edits
-
-window.updateKeyUI = function() {
-  const keyBtn = document.getElementById("aiKeyBtn");
-  if (!keyBtn) return;
-  if (OPENROUTER_API_KEY) {
-    keyBtn.textContent = "🔑 Key Set";
-    keyBtn.style.color = "#4ade80";
-    keyBtn.title = "OpenRouter API Key is configured. Click to change or clear.";
-  } else {
-    keyBtn.textContent = "🔑 No Key";
-    keyBtn.style.color = "#f87171";
-    keyBtn.title = "No API Key configured. Click to configure.";
-  }
-};
-
-// Initialize key UI on script load
-try {
-  setTimeout(() => window.updateKeyUI(), 50);
-} catch (e) {
-  console.warn("Failed to initialize API key UI:", e);
-}
+/* ===== AI Backend Proxy (Secure & Keyless) ===== */
+const BACKEND_BASE = (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+  ? `${location.protocol}//${location.hostname}:5000`
+  : "http://localhost:5000";
 
 async function callAI(messages, { maxTokens = 600, temperature = 0.2 } = {}) {
-  if (!OPENROUTER_API_KEY) {
-    const userKey = prompt("Please enter your OpenRouter API Key to use the AI Copilot features (this is stored only in your local browser):");
-    if (userKey && userKey.trim()) {
-      OPENROUTER_API_KEY = userKey.trim();
-      localStorage.setItem("OPENROUTER_API_KEY", OPENROUTER_API_KEY);
-      window.updateKeyUI();
-    } else {
-      throw new Error("Missing OpenRouter API key. Click the key icon in the AI search bar to set it.");
-    }
-  }
-  const res = await fetch(OPENROUTER_ENDPOINT, {
+  const res = await fetch(`${BACKEND_BASE}/api/ai/chat`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-      "Content-Type": "application/json",
-      // Optional but recommended:
-      "HTTP-Referer": (location && location.origin) || "http://localhost",
-      "X-Title": "IBP Timetable Generator"
+      "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: OPENROUTER_MODEL,
       messages,
-      max_tokens: maxTokens,
+      maxTokens,
       temperature
     })
   });
   if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem("OPENROUTER_API_KEY");
-      OPENROUTER_API_KEY = "";
-      window.updateKeyUI();
-      throw new Error("AI request failed: Invalid API key. The key has been cleared. Please set it again.");
-    }
     const t = await res.text();
-    throw new Error("AI request failed: " + t);
+    let errMsg = "AI request failed";
+    try {
+      const errJson = JSON.parse(t);
+      errMsg = errJson.error || errMsg;
+    } catch (e) {}
+    throw new Error(errMsg);
   }
   const data = await res.json();
-  const text = data?.choices?.[0]?.message?.content || "";
-  return text.trim();
+  return (data?.reply || "").trim();
 }
 
 /* Build a concise, AI-friendly snapshot of current page context */
@@ -2716,7 +2678,6 @@ function aiSetMarquee(text) {
 (function(){
   const input = byId("aiSearchInput");
   const btn = byId("aiSearchBtn");
-  const keyBtn = byId("aiKeyBtn");
   if (!input || !btn) return;
 
   async function ask() {
@@ -2752,25 +2713,6 @@ function aiSetMarquee(text) {
 
   btn.addEventListener("click", ask);
   input.addEventListener("keydown", (e)=>{ if(e.key==="Enter") ask(); });
-
-  if (keyBtn) {
-    keyBtn.addEventListener("click", () => {
-      const userKey = prompt("Enter your OpenRouter API Key (leave blank to clear):", OPENROUTER_API_KEY);
-      if (userKey !== null) {
-        OPENROUTER_API_KEY = userKey.trim();
-        if (OPENROUTER_API_KEY) {
-          localStorage.setItem("OPENROUTER_API_KEY", OPENROUTER_API_KEY);
-          alert("API Key saved successfully!");
-        } else {
-          localStorage.removeItem("OPENROUTER_API_KEY");
-          alert("API Key cleared.");
-        }
-        if (typeof window.updateKeyUI === "function") {
-          window.updateKeyUI();
-        }
-      }
-    });
-  }
 })();
 /* ===== Minimal Edits on Failure ===== */
 async function aiSuggestMinimalEdits({ reason = "No feasible schedule found." } = {}) {
