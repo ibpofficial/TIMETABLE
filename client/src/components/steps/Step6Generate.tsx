@@ -1,8 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
-import { Play, Settings, X, Activity, Layers, ShieldAlert } from 'lucide-react';
+import { Play, Settings, X, Activity, Layers, ShieldAlert, ChevronRight, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTimetableStore } from '../../store/useTimetableStore';
-import { Button, Card, Input, SectionHeader } from '../ui';
+import { Button, Card, Input, SectionHeader, Modal, ConfirmModal } from '../ui';
 import { StepNav } from './StepNav';
 import { startGeneration, pollJob, cancelJob } from '../../api/client';
 import type { SchedulerConfig } from '../../types';
@@ -10,6 +10,10 @@ import type { SchedulerConfig } from '../../types';
 export function Step6Generate() {
   const store = useTimetableStore();
   const [loading, setLoading] = useState(false);
+  const [valErrors, setValErrors] = useState<any[]>([]);
+  const [valWarnings, setValWarnings] = useState<any[]>([]);
+  const [showValModal, setShowValModal] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Read config summary details
@@ -39,12 +43,41 @@ export function Step6Generate() {
     }
   }, [store.jobId]);
 
-  const handleGenerate = async () => {
-    if (store.subjects.length === 0) {
-      toast.error('Add at least one subject before generating a schedule.');
-      return;
+  const handleGenerate = async (force: boolean = false) => {
+    if (!force) {
+      const errorsList = [];
+      const warningsList = [];
+
+      if (store.days.length === 0) {
+        errorsList.push({ step: 1, text: 'No teaching days selected. You must define at least one teaching day.', action: 'Select Days' });
+      }
+      if (store.theoryRooms.length + store.labRooms.length === 0) {
+        errorsList.push({ step: 1, text: 'No classrooms or labs created. The solver needs rooms to place classes.', action: 'Configure Rooms' });
+      }
+      if (store.batches.length === 0) {
+        errorsList.push({ step: 2, text: 'No student batches defined. Timetables are generated per batch.', action: 'Configure Batches' });
+      }
+      if (store.faculties.length === 0) {
+        errorsList.push({ step: 3, text: 'No teaching staff added. You must have teachers to assign to subjects.', action: 'Add Faculties' });
+      }
+      if (store.subjects.length === 0) {
+        errorsList.push({ step: 4, text: 'No subjects have been defined. You must have course subjects to schedule.', action: 'Add Subjects' });
+      }
+
+      const unassignedCount = store.subjects.filter(s => !s.facultyId).length;
+      if (unassignedCount > 0) {
+        warningsList.push({ step: 4, text: `${unassignedCount} subject(s) have no teacher assigned. These subjects will be ignored during scheduling.`, action: 'Assign Teachers' });
+      }
+
+      if (errorsList.length > 0 || warningsList.length > 0) {
+        setValErrors(errorsList);
+        setValWarnings(warningsList);
+        setShowValModal(true);
+        return;
+      }
     }
 
+    setShowValModal(false);
     setLoading(true);
     store.resetResults();
 
@@ -150,6 +183,7 @@ export function Step6Generate() {
       <SectionHeader
         title="Step 6 — Review & Generate"
         subtitle="Review your scheduling inputs, adjust optimization settings, and run the CSP solver."
+        onClear={() => setShowClearConfirm(true)}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -331,14 +365,9 @@ export function Step6Generate() {
                 variant="primary"
                 className="w-full py-3.5 text-base justify-center shadow-lg"
                 icon={<Play size={16} fill="currentColor" />}
-                onClick={handleGenerate}
+                onClick={() => handleGenerate(false)}
                 loading={isGenerating || loading}
-                disabled={
-                  isGenerating ||
-                  store.batches.length === 0 ||
-                  store.faculties.length === 0 ||
-                  store.subjects.length === 0
-                }
+                disabled={isGenerating}
               >
                 Generate Timetable
               </Button>
@@ -348,6 +377,98 @@ export function Step6Generate() {
       </div>
 
       <StepNav />
+
+      {/* Descriptive Validation Check Modal */}
+      <Modal
+        isOpen={showValModal}
+        onClose={() => setShowValModal(false)}
+        title="Timetable Validation Pre-check"
+      >
+        <div className="space-y-6">
+          <p className="text-xs text-slate-500 leading-normal">
+            We analyzed your scheduling inputs. Please resolve any critical errors below before starting the solver.
+          </p>
+
+          {/* Critical Errors */}
+          {valErrors.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-red-400 uppercase tracking-wider flex items-center gap-1.5">
+                <AlertTriangle size={14} /> Critical Requirements ({valErrors.length})
+              </h4>
+              <div className="space-y-2">
+                {valErrors.map((err, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 p-3 bg-red-500/5 border border-red-500/10 rounded-xl">
+                    <p className="text-xs text-red-200 leading-normal">{err.text}</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowValModal(false);
+                        store.setStep(err.step);
+                      }}
+                      className="shrink-0 text-xs border-red-500/20 text-red-300 hover:bg-red-500/10"
+                    >
+                      {err.action} <ChevronRight size={12} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Warnings */}
+          {valWarnings.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <AlertTriangle size={14} /> Optimization Warnings ({valWarnings.length})
+              </h4>
+              <div className="space-y-2">
+                {valWarnings.map((warn, i) => (
+                  <div key={i} className="flex items-center justify-between gap-3 p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl">
+                    <p className="text-xs text-amber-200 leading-normal">{warn.text}</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowValModal(false);
+                        store.setStep(warn.step);
+                      }}
+                      className="shrink-0 text-xs border-amber-500/20 text-amber-300 hover:bg-amber-500/10"
+                    >
+                      {warn.action} <ChevronRight size={12} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-white/[0.06]">
+            <Button variant="ghost" onClick={() => setShowValModal(false)}>
+              Go Back
+            </Button>
+            {valErrors.length === 0 && (
+              <Button
+                variant="primary"
+                onClick={() => handleGenerate(true)}
+              >
+                Proceed & Generate anyway
+              </Button>
+            )}
+          </div>
+        </div>
+      </Modal>
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={() => {
+          store.clearStepData(6);
+          toast.success('Generated solution results cleared.');
+        }}
+        title="Clear Optimization Results"
+        message="Are you sure you want to clear the previously generated solver solutions and diagnostics? This will reset the results tab."
+        confirmLabel="Clear Page"
+      />
     </div>
   );
 }

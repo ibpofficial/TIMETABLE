@@ -1,16 +1,20 @@
 import { useState } from 'react';
-import { BookOpen, Trash2, ChevronDown, ChevronUp, Link2 } from 'lucide-react';
+import { BookOpen, Trash2, ChevronDown, ChevronUp, Link2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTimetableStore } from '../../store/useTimetableStore';
-import { Button, Card, Chip, EmptyState, FormField, Input, Select, SectionHeader, Badge } from '../ui';
+import { Button, Card, Chip, EmptyState, FormField, Input, Select, SectionHeader, Badge, Modal, ConfirmModal } from '../ui';
 import { StepNav } from './StepNav';
 import type { Subject, UnavailabilityWindow } from '../../types';
+import ImportFacultyExcel from '../ImportFacultyExcel';
 
 let subjIdCounter = 1;
 const genSubjId = () => `S${subjIdCounter++}_${Date.now().toString(36)}`;
 
 export function Step4Subjects() {
   const { subjects, faculties, batches, days, addSubject, removeSubject, slotLength, startTime, endTime, maxClassesPerDay, theoryRooms, labRooms } = useTimetableStore();
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [deleteConfirmSubjId, setDeleteConfirmSubjId] = useState<string | null>(null);
 
   // Extract all unique configured room types and equipment tags from Step 1
   const configuredRoomTypes = Array.from(new Set([
@@ -145,18 +149,29 @@ export function Step4Subjects() {
       <SectionHeader
         title="Step 4 — Subjects"
         subtitle="Define courses per batch. Select multiple batches to create a shared elective."
+        onClear={() => setShowClearConfirm(true)}
       />
 
       {/* Add Form */}
       <Card className="mb-5">
-        <h3 className="font-semibold text-slate-200 mb-4 flex items-center gap-2">
-          Add Subject
-          {isElective && (
-            <Badge variant="warning">
-              <Link2 size={10} className="mr-1" /> Elective (shared across {form.selectedBatches.length} batches)
-            </Badge>
-          )}
-        </h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-semibold text-slate-200 flex items-center gap-2">
+            Add Subject
+            {isElective && (
+              <Badge variant="warning">
+                <Link2 size={10} className="mr-1" /> Elective (shared across {form.selectedBatches.length} batches)
+              </Badge>
+            )}
+          </h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsImportOpen(true)}
+            icon={<Upload size={14} />}
+          >
+            Import from Excel
+          </Button>
+        </div>
 
         {/* Batch selection */}
         <FormField label="Assign to Batch(es)" error={formError.batch}>
@@ -361,34 +376,88 @@ export function Step4Subjects() {
       {subjects.length === 0 ? (
         <EmptyState icon={<BookOpen size={36} className="text-slate-600" />} title="No subjects yet" description="Add theory or practical subjects. Practicals with session length > 1 are automatically scheduled as contiguous blocks." />
       ) : (
-        <div className="grid gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {subjects.map((s) => {
             const fac = faculties.find((f) => f.id === s.facultyId);
             return (
-              <Card key={s.id} className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-slate-200">{s.name}</span>
-                    <Badge variant={s.type === 'theory' ? 'default' : 'warning'}>{s.type}</Badge>
-                    {s.batches.length > 1 && <Badge variant="success"><Link2 size={10} className="mr-1" />Elective</Badge>}
+              <Card key={s.id} hover className="border-white/[0.08] flex flex-col justify-between min-h-[190px] p-5 bg-gradient-to-br from-[#131b3e] to-[#0a0f26] relative group">
+                <div>
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <h4 className="font-bold text-slate-200 text-sm truncate" title={s.name}>
+                        {s.name}
+                      </h4>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        <Badge variant={s.type === 'theory' ? 'default' : 'warning'}>
+                          {s.type === 'theory' ? 'Theory' : 'Practical'}
+                        </Badge>
+                        {s.batches.length > 1 && (
+                          <Badge variant="success" className="text-[9px] px-1 py-0 flex items-center gap-0.5">
+                            <Link2 size={8} /> Elective
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      id={`btn-remove-subj-${s.id}`}
+                      onClick={() => setDeleteConfirmSubjId(s.id)}
+                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors shrink-0"
+                      title="Remove subject"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    {s.batches.join(', ')} • {s.classesPerWeek}×/week • {s.sessionLength} slot(s)
-                    {fac ? ` • ${fac.name}` : ' • Unassigned'}
-                    {s.fixed ? ` • Fixed: ${s.fixedDay} ${s.fixedStart}` : ''}
-                    {s.preferredRoomTypes && s.preferredRoomTypes.length > 0 ? ` • Room Types: ${s.preferredRoomTypes.map(x => x.replace('_', ' ').toUpperCase()).join(', ')}` : ''}
-                    {s.requiredEquipment && s.requiredEquipment.length > 0 ? ` • Equipment: ${s.requiredEquipment.map(x => x.replace('_', ' ').toUpperCase()).join(', ')}` : ''}
-                    {(s.unavail?.length ?? 0) > 0 ? ` • ${s.unavail!.length} unavail block(s)` : ''}
+
+                  {/* Metadata info */}
+                  <div className="space-y-1.5 text-slate-400 text-[11px] mt-3">
+                    <div className="flex justify-between">
+                      <span>Batches:</span>
+                      <span className="font-semibold text-slate-200 truncate max-w-[130px]" title={s.batches.join(', ')}>
+                        {s.batches.join(', ')}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Faculty:</span>
+                      <span className={`font-semibold ${fac ? 'text-slate-200' : 'text-amber-400 font-bold'}`}>
+                        {fac ? fac.name : 'Unassigned'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Workload:</span>
+                      <span className="font-semibold text-slate-200">
+                        {s.classesPerWeek} × {s.sessionLength} {s.sessionLength > 1 ? 'slots' : 'slot'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <button
-                  id={`btn-remove-subj-${s.id}`}
-                  onClick={() => removeSubject(s.id)}
-                  className="shrink-0 p-1.5 rounded-lg hover:bg-red-500/10 text-slate-600 hover:text-red-400 transition-colors"
-                  title="Remove subject"
-                >
-                  <Trash2 size={15} />
-                </button>
+
+                {/* Constraint indicators */}
+                <div className="mt-4 pt-3.5 border-t border-white/[0.04] flex flex-wrap gap-1.5">
+                  {s.fixed && (
+                    <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-mono">
+                      📌 {s.fixedDay} {s.fixedStart}
+                    </span>
+                  )}
+                  {(s.preferredRoomTypes && s.preferredRoomTypes.length > 0) && (
+                    <span className="text-[9px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded-md" title={`Rooms: ${s.preferredRoomTypes.join(', ')}`}>
+                      🏠 {s.preferredRoomTypes.length} types
+                    </span>
+                  )}
+                  {(s.requiredEquipment && s.requiredEquipment.length > 0) && (
+                    <span className="text-[9px] bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded-md" title={`Equipment: ${s.requiredEquipment.join(', ')}`}>
+                      ⚙️ {s.requiredEquipment.length} reqs
+                    </span>
+                  )}
+                  {(s.unavail && s.unavail.length > 0) && (
+                    <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded-md">
+                      🚫 {s.unavail.length} blocked
+                    </span>
+                  )}
+                  {(!s.fixed && (!s.preferredRoomTypes || s.preferredRoomTypes.length === 0) && (!s.requiredEquipment || s.requiredEquipment.length === 0) && (!s.unavail || s.unavail.length === 0)) && (
+                    <span className="text-[9px] text-slate-600 italic">No custom constraints</span>
+                  )}
+                </div>
               </Card>
             );
           })}
@@ -396,6 +465,36 @@ export function Step4Subjects() {
       )}
 
       <StepNav />
+
+      <Modal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} title="Import Faculties & Subjects from Excel">
+        <ImportFacultyExcel onClose={() => setIsImportOpen(false)} />
+      </Modal>
+
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={() => {
+          useTimetableStore.getState().clearStepData(4);
+          toast.success('Subjects directory cleared.');
+        }}
+        title="Clear Subjects List"
+        message="Are you sure you want to clear all defined subjects? This will also wipe out subject details and weekly lesson hours settings."
+        confirmLabel="Clear Page"
+      />
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmSubjId}
+        onClose={() => setDeleteConfirmSubjId(null)}
+        onConfirm={() => {
+          if (deleteConfirmSubjId) {
+            removeSubject(deleteConfirmSubjId);
+            toast.success('Subject removed successfully!');
+          }
+        }}
+        title="Delete Subject"
+        message="Are you sure you want to delete this course subject? This cannot be undone."
+        confirmLabel="Delete"
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTimetableStore } from '../../store/useTimetableStore';
-import { Button, Card, FormField, Input, SectionHeader } from '../ui';
+import { Button, Card, FormField, Input, SectionHeader, ConfirmModal } from '../ui';
 import { StepNav } from './StepNav';
 import type { Room } from '../../types';
 import { Trash2, Plus, Building2 } from 'lucide-react';
@@ -29,6 +29,7 @@ const EQUIPMENT_OPTIONS = [
 export function Step1Institution() {
   const store = useTimetableStore();
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const [allRooms, setAllRooms] = useState<Room[]>(() => [
     ...store.theoryRooms,
@@ -146,7 +147,7 @@ export function Step1Institution() {
   };
 
   const handleNext = () => {
-    if (!validate()) return false;
+    validate();
 
     // Filter rooms into theory and practical Lists based on type
     const theory = allRooms.filter(r => ['theory', 'lecture_hall', 'seminar_room', 'auditorium'].includes(r.type));
@@ -232,6 +233,7 @@ export function Step1Institution() {
         <SectionHeader
           title="Step 1 — Institution & Time"
           subtitle="Configure your institution's working schedule and building classrooms."
+          onClear={() => setShowClearConfirm(true)}
         />
         <Button
           variant="secondary"
@@ -504,6 +506,19 @@ export function Step1Institution() {
       </div>
 
       <StepNav onNext={handleNext} />
+
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={() => {
+          store.clearStepData(1);
+          setAllRooms([]);
+          toast.success('Institution and schedule settings cleared.');
+        }}
+        title="Clear Institution Configuration"
+        message="Are you sure you want to clear the working days, times, slots, and classroom directory? This cannot be undone."
+        confirmLabel="Clear Page"
+      />
     </div>
   );
 }

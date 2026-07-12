@@ -91,6 +91,7 @@ interface TimetableState {
   // Reset
   resetAll: () => void;
   resetResults: () => void;
+  clearStepData: (step: WizardStep) => void;
 }
 
 const generateSessionId = () => `sess_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -235,6 +236,29 @@ export const useTimetableStore = create<TimetableState>()(
 
       resetAll: () => set({ ...defaultState, sessionId: get().sessionId }),
       resetResults: () => set({ jobId: null, jobStatus: null, solution: null, diagnostics: null }),
+      clearStepData: (step) => set((s) => {
+        switch (step) {
+          case 0:
+            return { departments: [], programs: [], batchDetails: {} };
+          case 1:
+            return { startTime: '09:00', endTime: '17:00', slotLength: 60, maxClassesPerDay: 6, theoryRooms: [], labRooms: [] };
+          case 2:
+            return { batches: [], batchSizes: {} };
+          case 3:
+            return {
+              faculties: [],
+              subjects: s.subjects.map((sub) => ({ ...sub, facultyId: null })),
+            };
+          case 4:
+            return { subjects: [] };
+          case 5:
+            return { breaks: [], events: [] };
+          case 6:
+            return { jobId: null, jobStatus: null, solution: null, diagnostics: null };
+          default:
+            return {};
+        }
+      }),
     }),
     {
       name: 'ibp-timetable-store',

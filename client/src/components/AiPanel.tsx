@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Sparkles, Send, Minimize2, Maximize2, Loader2,
-  Zap, Users, Building, AlertTriangle, Bot
+  Zap, Users, Building, AlertTriangle, Bot, Key
 } from 'lucide-react';
 import { useTimetableStore } from '../store/useTimetableStore';
 import { fetchAiTip, fetchAiAgent } from '../api/client';
@@ -74,6 +74,16 @@ export function AiPanel() {
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'coach'>('chat');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('OPENROUTER_API_KEY') || '');
+  const [showKeyInput, setShowKeyInput] = useState(false);
+
+  const isKeyConfigured = !!apiKey.trim() || !!((import.meta as any).env?.VITE_OPENROUTER_API_KEY);
+
+  const handleSaveKey = (key: string) => {
+    localStorage.setItem('OPENROUTER_API_KEY', key.trim());
+    setApiKey(key.trim());
+    setShowKeyInput(false);
+  };
 
   // Chat state
   const [messages, setMessages] = useState<ChatMessage[]>([{
@@ -239,133 +249,227 @@ export function AiPanel() {
               </button>
             ))}
           </div>
+          <button
+            onClick={() => setShowKeyInput(!showKeyInput)}
+            className={`p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors ${showKeyInput || !isKeyConfigured ? 'text-brand' : 'text-slate-500 hover:text-slate-300'}`}
+            title="Manage API Key"
+          >
+            <Key size={14} />
+          </button>
           <button onClick={() => setIsCollapsed(true)} className="p-1.5 rounded-lg hover:bg-white/[0.06] text-slate-500 hover:text-slate-300 transition-colors" title="Collapse">
             <Minimize2 size={14} />
           </button>
         </div>
       </div>
 
-      {/* ── Chat Tab ──────────────────────────────────────────────────── */}
-      {activeTab === 'chat' && (
-        <>
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-[240px] max-h-[340px]">
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs shrink-0 ${msg.role === 'user' ? 'bg-brand/20 text-brand font-black' : 'bg-white/[0.06] text-slate-400'}`}>
-                  {msg.role === 'user' ? 'U' : <Bot size={12} />}
-                </div>
-                <div className={`max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                  <div className={`rounded-2xl px-3.5 py-2.5 ${msg.role === 'user' ? 'bg-brand/15 border border-brand/20 rounded-tr-sm' : 'bg-white/[0.04] border border-white/[0.06] rounded-tl-sm'}`}>
-                    <RenderMarkdown text={msg.content} />
-                  </div>
-                  {msg.toolsUsed && msg.toolsUsed.length > 0 && (
-                    <div className="flex gap-1 flex-wrap">
-                      {msg.toolsUsed.map((t, j) => (
-                        <span key={j} className="text-[9px] font-mono bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full">
-                          🔧 {t}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {loading && (
-              <div className="flex gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-white/[0.06] flex items-center justify-center">
-                  <Bot size={12} className="text-slate-400" />
-                </div>
-                <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
-                  <Loader2 size={13} className="animate-spin text-brand" />
-                  <span className="text-xs text-slate-400 italic">Querying live data…</span>
-                </div>
-              </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
-
-          {/* Quick action buttons */}
-          <div className="px-4 pb-2 flex flex-wrap gap-1.5">
-            {QUICK_ACTIONS.map((qa, i) => (
-              <button
-                key={i}
-                onClick={() => sendMessage(qa.msg)}
-                disabled={loading || sessionCalls >= MAX_CALLS}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.07] text-[11px] text-slate-400 hover:text-slate-200 hover:bg-white/[0.07] hover:border-brand/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {qa.icon}
-                {qa.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Input */}
-          <div className="px-4 pb-4 pt-1 flex gap-2 items-center border-t border-white/[0.06] shrink-0">
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-              placeholder={sessionCalls >= MAX_CALLS ? 'Session limit reached.' : 'Ask about faculty loads, room conflicts, scheduling failures…'}
-              disabled={loading || sessionCalls >= MAX_CALLS}
-              className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3.5 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-brand/40 focus:border-brand/30 transition-all disabled:opacity-50"
-            />
-            <button
-              onClick={() => sendMessage(input)}
-              disabled={!input.trim() || loading || sessionCalls >= MAX_CALLS}
-              className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity shadow-md"
-              title="Send"
-            >
-              {loading ? <Loader2 size={15} className="animate-spin text-white" /> : <Send size={15} className="text-white" />}
-            </button>
-          </div>
-        </>
+      {/* API Key Edit Row */}
+      {showKeyInput && isKeyConfigured && (
+        <div className="px-4 py-2 border-b border-white/[0.06] bg-white/[0.02] flex items-center gap-2">
+          <input
+            type="password"
+            defaultValue={apiKey}
+            placeholder="Edit key or leave empty to clear..."
+            className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-lg px-2.5 py-1.5 text-[10px] text-slate-200 placeholder:text-slate-600 focus:outline-none"
+            id="apiKeyUpdateInput"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const val = (e.target as HTMLInputElement).value;
+                handleSaveKey(val);
+              }
+            }}
+          />
+          <button
+            onClick={() => {
+              const el = document.getElementById('apiKeyUpdateInput') as HTMLInputElement;
+              if (el) handleSaveKey(el.value);
+            }}
+            className="px-3 py-1.5 text-[10px] font-bold text-white bg-brand rounded-lg"
+          >
+            Update
+          </button>
+          <button
+            onClick={() => {
+              localStorage.removeItem('OPENROUTER_API_KEY');
+              setApiKey('');
+              setShowKeyInput(false);
+            }}
+            className="px-2.5 py-1.5 text-[10px] font-bold text-red-400 hover:bg-red-500/10 rounded-lg"
+          >
+            Clear
+          </button>
+        </div>
       )}
 
-      {/* ── Coach Tab ─────────────────────────────────────────────────── */}
-      {activeTab === 'coach' && (
-        <div className="flex-1 flex flex-col gap-3 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-bold text-slate-200">Step {currentStep} Coach Instructions</p>
-              <p className="text-xs text-slate-500">On-demand tips for the current wizard step</p>
-            </div>
-            <button
-              onClick={loadCoachTip}
-              disabled={tipLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand/10 border border-brand/20 text-xs font-bold text-brand hover:bg-brand/20 transition-all disabled:opacity-50"
-            >
-              {tipLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-              {tipLoaded ? 'Refresh Tips' : 'Load AI Coach Tips'}
-            </button>
+      {!isKeyConfigured ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center min-h-[300px]">
+          <div className="w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center mb-4">
+            <Key size={20} className="text-brand animate-pulse" />
           </div>
-
-          {!tipLoaded && !tipLoading && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center">
-                <Sparkles size={20} className="text-brand" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-300">Coach Tips Not Loaded</p>
-                <p className="text-xs text-slate-500 mt-1">Click "Load AI Coach Tips" to get contextual advice for Step {currentStep}</p>
-              </div>
-            </div>
-          )}
-
-          {tipLoading && (
-            <div className="flex-1 flex items-center justify-center gap-2 text-slate-400">
-              <Loader2 size={18} className="animate-spin text-brand" />
-              <span className="text-sm">Generating step-specific coach instructions…</span>
-            </div>
-          )}
-
-          {tipLoaded && tip && (
-            <div className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 overflow-y-auto">
-              <RenderMarkdown text={tip} />
-            </div>
-          )}
+          <h4 className="text-sm font-bold text-slate-200">AI Scheduling Features Setup</h4>
+          <p className="text-xs text-slate-500 mt-1 max-w-xs leading-normal">
+            To use the AI Copilot, conflict suggestions, and live scheduling assistant, please enter your OpenRouter API key.
+          </p>
+          
+          <div className="w-full max-w-xs mt-5 space-y-2">
+            <input
+              type="password"
+              placeholder="sk-or-v1-..."
+              className="w-full bg-white/[0.04] border border-[#28305a]/60 rounded-xl px-3.5 py-2.5 text-xs text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-brand/40 focus:border-brand/30"
+              id="apiKeyInput"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = (e.target as HTMLInputElement).value;
+                  if (val.trim()) handleSaveKey(val);
+                }
+              }}
+            />
+            <button
+              onClick={() => {
+                const el = document.getElementById('apiKeyInput') as HTMLInputElement;
+                if (el && el.value.trim()) handleSaveKey(el.value);
+              }}
+              className="w-full py-2.5 text-xs font-bold text-white bg-gradient-to-r from-brand to-brand-light rounded-xl shadow-md hover:opacity-90 transition-opacity"
+            >
+              Save API Key
+            </button>
+            <p className="text-[10px] text-slate-600 leading-normal">
+              Stored securely in your browser's localStorage. Get a key at{' '}
+              <a
+                href="https://openrouter.ai"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-brand hover:underline"
+              >
+                openrouter.ai
+              </a>.
+            </p>
+          </div>
         </div>
+      ) : (
+        <>
+          {/* ── Chat Tab ──────────────────────────────────────────────────── */}
+          {activeTab === 'chat' && (
+            <>
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-[240px] max-h-[340px]">
+                {messages.map((msg, i) => (
+                  <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs shrink-0 ${msg.role === 'user' ? 'bg-brand/20 text-brand font-black' : 'bg-white/[0.06] text-slate-400'}`}>
+                      {msg.role === 'user' ? 'U' : <Bot size={12} />}
+                    </div>
+                    <div className={`max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                      <div className={`rounded-2xl px-3.5 py-2.5 ${msg.role === 'user' ? 'bg-brand/15 border border-brand/20 rounded-tr-sm' : 'bg-white/[0.04] border border-white/[0.06] rounded-tl-sm'}`}>
+                        <RenderMarkdown text={msg.content} />
+                      </div>
+                      {msg.toolsUsed && msg.toolsUsed.length > 0 && (
+                        <div className="flex gap-1 flex-wrap">
+                          {msg.toolsUsed.map((t, j) => (
+                            <span key={j} className="text-[9px] font-mono bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full">
+                              🔧 {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {loading && (
+                  <div className="flex gap-2.5">
+                    <div className="w-7 h-7 rounded-xl bg-white/[0.06] flex items-center justify-center">
+                      <Bot size={12} className="text-slate-400" />
+                    </div>
+                    <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
+                      <Loader2 size={13} className="animate-spin text-brand" />
+                      <span className="text-xs text-slate-400 italic">Querying live data…</span>
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Quick action buttons */}
+              <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+                {QUICK_ACTIONS.map((qa, i) => (
+                  <button
+                    key={i}
+                    onClick={() => sendMessage(qa.msg)}
+                    disabled={loading || sessionCalls >= MAX_CALLS}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.07] text-[11px] text-slate-400 hover:text-slate-200 hover:bg-white/[0.07] hover:border-brand/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {qa.icon}
+                    {qa.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Input */}
+              <div className="px-4 pb-4 pt-1 flex gap-2 items-center border-t border-white/[0.06] shrink-0">
+                <input
+                  ref={inputRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+                  placeholder={sessionCalls >= MAX_CALLS ? 'Session limit reached.' : 'Ask about faculty loads, room conflicts, scheduling failures…'}
+                  disabled={loading || sessionCalls >= MAX_CALLS}
+                  className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3.5 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-brand/40 focus:border-brand/30 transition-all disabled:opacity-50"
+                />
+                <button
+                  onClick={() => sendMessage(input)}
+                  disabled={!input.trim() || loading || sessionCalls >= MAX_CALLS}
+                  className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity shadow-md"
+                  title="Send"
+                >
+                  {loading ? <Loader2 size={15} className="animate-spin text-white" /> : <Send size={15} className="text-white" />}
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ── Coach Tab ─────────────────────────────────────────────────── */}
+          {activeTab === 'coach' && (
+            <div className="flex-1 flex flex-col gap-3 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-slate-200">Step {currentStep} Coach Instructions</p>
+                  <p className="text-xs text-slate-500">On-demand tips for the current wizard step</p>
+                </div>
+                <button
+                  onClick={loadCoachTip}
+                  disabled={tipLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand/10 border border-brand/20 text-xs font-bold text-brand hover:bg-brand/20 transition-all disabled:opacity-50"
+                >
+                  {tipLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                  {tipLoaded ? 'Refresh Tips' : 'Load AI Coach Tips'}
+                </button>
+              </div>
+
+              {!tipLoaded && !tipLoading && (
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center">
+                    <Sparkles size={20} className="text-brand" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-300">Coach Tips Not Loaded</p>
+                    <p className="text-xs text-slate-500 mt-1">Click "Load AI Coach Tips" to get contextual advice for Step {currentStep}</p>
+                  </div>
+                </div>
+              )}
+
+              {tipLoading && (
+                <div className="flex-1 flex items-center justify-center gap-2 text-slate-400">
+                  <Loader2 size={18} className="animate-spin text-brand" />
+                  <span className="text-sm">Generating step-specific coach instructions…</span>
+                </div>
+              )}
+
+              {tipLoaded && tip && (
+                <div className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 overflow-y-auto">
+                  <RenderMarkdown text={tip} />
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </Card>
   );

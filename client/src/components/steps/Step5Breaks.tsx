@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Plus, Trash2, Coffee, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTimetableStore } from '../../store/useTimetableStore';
-import { Button, Card, EmptyState, FormField, Input, Select, SectionHeader } from '../ui';
+import { Button, Card, EmptyState, FormField, Input, Select, SectionHeader, ConfirmModal } from '../ui';
 import { StepNav } from './StepNav';
 import type { FixedEvent } from '../../types';
 
@@ -31,6 +31,7 @@ export function Step5Breaks() {
   const [eventRoomType, setEventRoomType] = useState<'theory' | 'practical'>('theory');
 
   const [eventError, setEventError] = useState('');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const handleAddBreak = () => {
     if (!breakStart) {
@@ -118,6 +119,7 @@ export function Step5Breaks() {
       <SectionHeader
         title="Step 5 — Breaks & Recurring Events"
         subtitle="Specify institutional intervals (like lunch breaks) and fixed events (such as assemblies or guest lectures)."
+        onClear={() => setShowClearConfirm(true)}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -350,6 +352,18 @@ export function Step5Breaks() {
       </div>
 
       <StepNav />
+
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={() => {
+          useTimetableStore.getState().clearStepData(5);
+          toast.success('Breaks and fixed events cleared.');
+        }}
+        title="Clear Breaks & Events"
+        message="Are you sure you want to clear all recess breaks and school-wide fixed activities? This cannot be undone."
+        confirmLabel="Clear Page"
+      />
     </div>
   );
 }

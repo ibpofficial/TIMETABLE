@@ -1,22 +1,25 @@
 import { useState } from 'react';
-import { UserSquare, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { UserSquare, Plus, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTimetableStore } from '../../store/useTimetableStore';
-import { Button, Card, Chip, EmptyState, FormField, Input, Select, SectionHeader } from '../ui';
+import { Button, Card, Chip, EmptyState, FormField, Input, Select, SectionHeader, Modal, ConfirmModal } from '../ui';
 import { StepNav } from './StepNav';
 import type { Faculty, UnavailabilityWindow } from '../../types';
+import ImportFacultyExcel from '../ImportFacultyExcel';
 
 let facIdCounter = 1;
 const genFacId = () => `F${facIdCounter++}_${Date.now().toString(36)}`;
 
 export function Step3Faculties() {
   const { faculties, addFaculty, updateFaculty, removeFaculty, days } = useTimetableStore();
-
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [form, setForm] = useState({
     name: '', leaves: 1, maxWeeklySlots: 18, maxDailySlots: '' as string | number,
   });
   const [formError, setFormError] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [unavailModalFacId, setUnavailModalFacId] = useState<string | null>(null);
+  const [deleteConfirmFacId, setDeleteConfirmFacId] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Unavailability window form per faculty card
   const [unvForms, setUnvForms] = useState<Record<string, { day: string; start: string; end: string }>>({});
@@ -68,22 +71,35 @@ export function Step3Faculties() {
 
   const validate = () => {
     if (faculties.length === 0) {
-      toast.error('Add at least one faculty member before proceeding.');
-      return false;
+      toast.warning('Note: No faculty members added yet.');
     }
     return true;
   };
+
+  const unavailModalFac = faculties.find(f => f.id === unavailModalFacId);
+  const unvForm = unavailModalFac ? (unvForms[unavailModalFac.id] ?? { day: days[0] || 'Mon', start: '', end: '' }) : { day: days[0] || 'Mon', start: '', end: '' };
 
   return (
     <div>
       <SectionHeader
         title="Step 3 — Faculties"
         subtitle="Add teaching staff with their availability constraints and workload limits."
+        onClear={() => setShowClearConfirm(true)}
       />
 
       {/* Add Faculty Form */}
       <Card className="mb-5">
-        <h3 className="font-semibold text-slate-200 mb-4">Add Faculty</h3>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-semibold text-slate-200">Add Faculty</h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsImportOpen(true)}
+            icon={<Upload size={14} />}
+          >
+            Import from Excel
+          </Button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <FormField label="Name" htmlFor="facName" error={formError} className="sm:col-span-2">
             <Input
@@ -127,100 +143,65 @@ export function Step3Faculties() {
           description="Add teaching staff above. You can specify availability blocks per faculty."
         />
       ) : (
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
           {faculties.map((fac) => {
-            const isOpen = expandedId === fac.id;
-            const unvForm = unvForms[fac.id] ?? { day: days[0] || 'Mon', start: '', end: '' };
-
+            const blockedCount = fac.unavail?.length || 0;
             return (
-              <Card key={fac.id} hover className="border-white/[0.08]">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="font-semibold text-slate-200">{fac.name}</div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      Max {fac.maxWeeklySlots} slots/week
-                      {fac.maxDailySlots ? ` • ${fac.maxDailySlots}/day` : ''}
-                      {fac.leaves > 0 ? ` • ${fac.leaves} leaves/mo` : ''}
-                      {fac.unavail?.length > 0 ? ` • ${fac.unavail.length} blocked window(s)` : ''}
+              <Card key={fac.id} hover className="border-white/[0.08] flex flex-col justify-between h-[180px] p-5 bg-gradient-to-br from-[#131b3e] to-[#0a0f26]">
+                <div className="space-y-3">
+                  {/* Header */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center font-black text-brand text-xs shrink-0">
+                        {fac.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="font-bold text-slate-200 text-sm truncate" title={fac.name}>
+                        {fac.name}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button
-                      id={`btn-toggle-fac-${fac.id}`}
-                      onClick={() => setExpandedId(isOpen ? null : fac.id)}
-                      className="p-1.5 rounded-lg hover:bg-white/[0.06] text-slate-400 hover:text-slate-200 transition-colors"
-                      title="Edit unavailability"
-                    >
-                      {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
+                    
                     <button
                       id={`btn-remove-fac-${fac.id}`}
-                      onClick={() => {
-                        if (!confirm(`Remove ${fac.name} and unassign their subjects?`)) return;
-                        removeFaculty(fac.id);
-                      }}
-                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
+                      onClick={() => setDeleteConfirmFacId(fac.id)}
+                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors shrink-0"
                       title="Remove faculty"
                     >
-                      <Trash2 size={16} />
+                      <Trash2 size={14} />
                     </button>
+                  </div>
+
+                  {/* Metadata info */}
+                  <div className="space-y-1 text-slate-400">
+                    <div className="text-[11px] flex justify-between">
+                      <span>Weekly slots:</span>
+                      <span className="font-semibold text-slate-300">{fac.maxWeeklySlots}</span>
+                    </div>
+                    {fac.maxDailySlots && (
+                      <div className="text-[11px] flex justify-between">
+                        <span>Max daily:</span>
+                        <span className="font-semibold text-slate-300">{fac.maxDailySlots}</span>
+                      </div>
+                    )}
+                    <div className="text-[11px] flex justify-between">
+                      <span>Monthly leaves:</span>
+                      <span className="font-semibold text-slate-300">{fac.leaves}</span>
+                    </div>
                   </div>
                 </div>
 
-                {isOpen && (
-                  <div className="mt-4 pt-4 border-t border-white/[0.06] animate-fade-in">
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Unavailability Windows</p>
-
-                    {/* Existing blocks */}
-                    {(fac.unavail || []).length > 0 && (
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {fac.unavail.map((u, idx) => (
-                          <Chip
-                            key={idx}
-                            label={`${u.day} ${u.start}–${u.end}`}
-                            onRemove={() => handleRemoveUnavail(fac, idx)}
-                            color="amber"
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Add new block */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
-                      <FormField label="Day">
-                        <Select
-                          value={unvForm.day}
-                          onChange={(e) => setUnvForms((prev) => ({ ...prev, [fac.id]: { ...unvForm, day: e.target.value } }))}
-                        >
-                          {days.map((d) => <option key={d} value={d}>{d}</option>)}
-                        </Select>
-                      </FormField>
-                      <FormField label="From">
-                        <Input
-                          type="time"
-                          value={unvForm.start}
-                          onChange={(e) => setUnvForms((prev) => ({ ...prev, [fac.id]: { ...unvForm, start: e.target.value } }))}
-                        />
-                      </FormField>
-                      <FormField label="To">
-                        <Input
-                          type="time"
-                          value={unvForm.end}
-                          onChange={(e) => setUnvForms((prev) => ({ ...prev, [fac.id]: { ...unvForm, end: e.target.value } }))}
-                        />
-                      </FormField>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon={<Plus size={14} />}
-                        onClick={() => handleAddUnavail(fac)}
-                        className="mb-1"
-                      >
-                        Block
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                {/* Actions bottom */}
+                <div className="flex items-center justify-between pt-3 border-t border-white/[0.04] mt-2">
+                  <span className={`text-[10px] ${blockedCount > 0 ? 'text-amber-400 font-semibold' : 'text-slate-500'}`}>
+                    {blockedCount > 0 ? `${blockedCount} Blocked Window${blockedCount > 1 ? 's' : ''}` : 'Fully Available'}
+                  </span>
+                  
+                  <button
+                    onClick={() => setUnavailModalFacId(fac.id)}
+                    className="text-[10px] text-brand hover:text-brand-light font-bold hover:underline transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    Set Available
+                  </button>
+                </div>
               </Card>
             );
           })}
@@ -228,6 +209,108 @@ export function Step3Faculties() {
       )}
 
       <StepNav onNext={validate} />
+
+      {/* Unavailability Modal */}
+      {unavailModalFac && (
+        <Modal
+          isOpen={!!unavailModalFac}
+          onClose={() => setUnavailModalFacId(null)}
+          title={`Manage Schedule Unavailability — ${unavailModalFac.name}`}
+        >
+          <div className="space-y-6">
+            <p className="text-xs text-slate-500 leading-normal">
+              Block specific days or time windows when this instructor is unavailable (e.g. for administrative work or part-time scheduling).
+            </p>
+
+            {/* Existing blocks */}
+            <div className="space-y-2">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Blocked Windows</p>
+              {(unavailModalFac.unavail || []).length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {unavailModalFac.unavail.map((u, idx) => (
+                    <Chip
+                      key={idx}
+                      label={`${u.day} ${u.start}–${u.end}`}
+                      onRemove={() => handleRemoveUnavail(unavailModalFac, idx)}
+                      color="amber"
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-600 italic">No blocked windows configured. This instructor is fully available.</p>
+              )}
+            </div>
+
+            {/* Add new block */}
+            <div className="pt-4 border-t border-white/[0.06] space-y-4">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Block New Window</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                <FormField label="Day">
+                  <Select
+                    value={unvForm.day}
+                    onChange={(e) => setUnvForms(prev => ({ ...prev, [unavailModalFac.id]: { ...unvForm, day: e.target.value } }))}
+                  >
+                    {days.map((d) => <option key={d} value={d}>{d}</option>)}
+                  </Select>
+                </FormField>
+                <FormField label="From">
+                  <Input
+                    type="time"
+                    value={unvForm.start}
+                    onChange={(e) => setUnvForms(prev => ({ ...prev, [unavailModalFac.id]: { ...unvForm, start: e.target.value } }))}
+                  />
+                </FormField>
+                <FormField label="To">
+                  <Input
+                    type="time"
+                    value={unvForm.end}
+                    onChange={(e) => setUnvForms(prev => ({ ...prev, [unavailModalFac.id]: { ...unvForm, end: e.target.value } }))}
+                  />
+                </FormField>
+              </div>
+              <div className="flex justify-end pt-2">
+                <Button
+                  variant="primary"
+                  icon={<Plus size={14} />}
+                  onClick={() => handleAddUnavail(unavailModalFac)}
+                >
+                  Block Window
+                </Button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      <Modal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} title="Import Faculties & Subjects from Excel">
+        <ImportFacultyExcel onClose={() => setIsImportOpen(false)} />
+      </Modal>
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmFacId}
+        onClose={() => setDeleteConfirmFacId(null)}
+        onConfirm={() => {
+          if (deleteConfirmFacId) {
+            removeFaculty(deleteConfirmFacId);
+            toast.success('Faculty member removed successfully!');
+          }
+        }}
+        title="Delete Faculty Member"
+        message={`Are you sure you want to remove this instructor? All of their course subject assignments will be cleared.`}
+        confirmLabel="Delete"
+      />
+
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={() => {
+          useTimetableStore.getState().clearStepData(3);
+          toast.success('Faculties list cleared.');
+        }}
+        title="Clear Faculties Directory"
+        message="Are you sure you want to clear the entire teaching staff list? This will also unassign all subjects from teachers."
+        confirmLabel="Clear Page"
+      />
     </div>
   );
 }

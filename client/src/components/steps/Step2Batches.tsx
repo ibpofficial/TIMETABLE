@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Users } from 'lucide-react';
 import { useTimetableStore } from '../../store/useTimetableStore';
-import { Button, Card, Chip, EmptyState, FormField, Input, SectionHeader } from '../ui';
+import { Button, Card, Chip, EmptyState, FormField, Input, SectionHeader, ConfirmModal } from '../ui';
 import { StepNav } from './StepNav';
 import { toast } from 'sonner';
 
@@ -10,6 +10,7 @@ export function Step2Batches() {
   const [input, setInput] = useState('');
   const [size, setSize] = useState('60');
   const [error, setError] = useState('');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const handleAdd = () => {
     const name = input.trim();
@@ -35,8 +36,7 @@ export function Step2Batches() {
 
   const validate = () => {
     if (batches.length === 0) {
-      toast.error('Add at least one batch before proceeding.');
-      return false;
+      toast.warning('Note: No batches configured yet.');
     }
     return true;
   };
@@ -46,6 +46,7 @@ export function Step2Batches() {
       <SectionHeader
         title="Step 2 — Batches"
         subtitle="Define student groups (e.g. CSE-3A, ECE-2B). Subjects will be assigned per batch."
+        onClear={() => setShowClearConfirm(true)}
       />
 
       <Card className="mb-5">
@@ -106,6 +107,18 @@ export function Step2Batches() {
       </div>
 
       <StepNav onNext={validate} />
+
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={() => {
+          useTimetableStore.getState().clearStepData(2);
+          toast.success('Batches cleared.');
+        }}
+        title="Clear Student Batches"
+        message="Are you sure you want to clear all batches and student counts? This will also unassign these batches from all course subjects."
+        confirmLabel="Clear Page"
+      />
     </div>
   );
 }

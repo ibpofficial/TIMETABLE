@@ -36,7 +36,7 @@ export function Wizard() {
       stepRefs.current[idx - 1]?.focus();
     } else if (e.key === 'Enter' || e.key === ' ') {
       const step = STEPS[idx];
-      if (step.id <= currentStep) setStep(step.id as WizardStep);
+      setStep(step.id as WizardStep);
     }
   };
 
@@ -70,7 +70,7 @@ export function Wizard() {
               {STEPS.map((step, idx) => {
                 const isActive = step.id === currentStep;
                 const isDone = step.id < currentStep;
-                const isAccessible = step.id <= currentStep || step.id === 0;
+                const isAccessible = true;
 
                 return (
                   <li
@@ -81,16 +81,14 @@ export function Wizard() {
                     aria-controls={`step-panel-${step.id}`}
                     tabIndex={isAccessible ? 0 : -1}
                     onKeyDown={(e) => handleKeyDown(e, idx)}
-                    onClick={() => { if (isAccessible) setStep(step.id as WizardStep); }}
+                    onClick={() => setStep(step.id as WizardStep)}
                     className={`
                       group relative flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer
                       border transition-all duration-200 whitespace-nowrap lg:whitespace-normal
                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand
                       ${isActive
-                        ? 'bg-gradient-to-r from-[#121a3a] to-[#0c1230] border-[#28305a] text-white shadow-md translate-x-0 lg:translate-x-1'
-                        : isDone
-                          ? 'bg-panel/60 border-white/[0.06] text-slate-400 hover:text-white hover:lg:translate-x-1'
-                          : 'bg-panel/30 border-white/[0.04] text-slate-600 cursor-not-allowed'
+                        ? 'bg-gradient-to-r from-[#121a3a] to-[#0c1230] border-[#28305a] text-white shadow-md translate-x-0 lg:translate-x-1 font-bold'
+                        : 'bg-panel/60 border-white/[0.06] text-slate-400 hover:text-white hover:lg:translate-x-1'
                       }
                     `}
                   >

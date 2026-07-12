@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Building2, FolderOpen, Plus, Trash2, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTimetableStore } from '../../store/useTimetableStore';
-import { Button, Card, Chip, EmptyState, FormField, Input, SectionHeader } from '../ui';
+import { Button, Card, Chip, EmptyState, FormField, Input, SectionHeader, ConfirmModal } from '../ui';
 import type { Department, Program } from '../../types';
 
 let deptIdCounter = 1;
@@ -13,6 +13,7 @@ const genProgId = () => `P${progIdCounter++}_${Date.now().toString(36)}`;
 export function Step0Departments() {
   const { departments, programs, batches, batchDetails,
     addDepartment, removeDepartment, addProgram, removeProgram, setBatchDetails } = useTimetableStore();
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const [deptForm, setDeptForm] = useState({ name: '', code: '' });
   const [deptError, setDeptError] = useState('');
@@ -48,6 +49,7 @@ export function Step0Departments() {
       <SectionHeader
         title="Step 0 — Departments & Programs"
         subtitle="Define your college's departmental structure. Batches, subjects, and faculty can be linked to departments for college-wide management."
+        onClear={() => setShowClearConfirm(true)}
       />
 
       {/* ── Add Department ────────────────────────────── */}
@@ -219,6 +221,17 @@ export function Step0Departments() {
           {departments.length === 0 ? 'Skip (No Departments)' : 'Continue to Institution Setup →'}
         </Button>
       </div>
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={() => {
+          useTimetableStore.getState().clearStepData(0);
+          toast.success('Department data cleared.');
+        }}
+        title="Clear Departments & Programs"
+        message="Are you sure you want to clear all departments, programs, and program linkages? This cannot be undone."
+        confirmLabel="Clear Page"
+      />
     </div>
   );
 }

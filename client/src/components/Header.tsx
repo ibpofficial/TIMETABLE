@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { Download, Upload, RotateCcw, Save, Database, Trash2, Loader2, Cloud } from 'lucide-react';
 import { useTimetableStore } from '../store/useTimetableStore';
-import { Button } from './ui';
+import { Button, ConfirmModal } from './ui';
 import {
   fsListConfigs, fsSaveConfig, fsUpdateConfig, fsLoadConfig, fsDeleteConfig
 } from '../lib/firestore';
@@ -11,6 +11,7 @@ import type { SchedulerConfig, SavedConfig } from '../types';
 export function Header() {
   const store = useTimetableStore();
   const [saving, setSaving] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   // Cloud loading state
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -136,7 +137,10 @@ export function Header() {
 
   // ── Reset All ────────────────────────────────────────────────────
   const handleReset = () => {
-    if (!confirm('Clear all batches, faculties, subjects, breaks, and events? This cannot be undone.')) return;
+    setShowResetConfirm(true);
+  };
+
+  const executeReset = () => {
     store.resetAll();
     toast.info('Configuration reset.');
   };
@@ -274,6 +278,15 @@ export function Header() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        onConfirm={executeReset}
+        title="Reset Configuration"
+        message="Are you sure you want to clear all batches, faculties, subjects, breaks, and events? This configuration data cannot be recovered."
+        confirmLabel="Reset All"
+      />
     </>
   );
 }

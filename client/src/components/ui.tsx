@@ -1,5 +1,5 @@
 import { type ReactNode, type ButtonHTMLAttributes } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 
 // ── Button ─────────────────────────────────────────────────────────
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
@@ -188,24 +188,44 @@ export function Chip({ label, onRemove, color = 'blue' }: ChipProps) {
 }
 
 // ── Badge ──────────────────────────────────────────────────────────
-export function Badge({ children, variant = 'default' }: { children: ReactNode; variant?: 'default' | 'success' | 'warning' | 'error' }) {
+export function Badge({ children, variant = 'default', className = '' }: { children: ReactNode; variant?: 'default' | 'success' | 'warning' | 'error'; className?: string }) {
   const v = {
     default: 'bg-slate-700/50 text-slate-300',
     success: 'bg-green-500/10 text-green-400',
     warning: 'bg-amber-500/10 text-amber-400',
     error: 'bg-red-500/10 text-red-400',
   };
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${v[variant]}`}>{children}</span>;
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${v[variant]} ${className}`}>{children}</span>;
 }
 
 // ── SectionHeader ──────────────────────────────────────────────────
-export function SectionHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+export function SectionHeader({
+  title,
+  subtitle,
+  onClear,
+}: {
+  title: string;
+  subtitle?: string;
+  onClear?: () => void;
+}) {
   return (
-    <div className="mb-6">
-      <h2 className="text-2xl font-bold bg-gradient-to-r from-brand to-brand-light bg-clip-text text-transparent">
-        {title}
-      </h2>
-      {subtitle && <p className="mt-1 text-sm text-slate-400">{subtitle}</p>}
+    <div className="mb-6 flex justify-between items-start gap-4">
+      <div>
+        <h2 className="text-2xl font-bold bg-gradient-to-r from-brand to-brand-light bg-clip-text text-transparent">
+          {title}
+        </h2>
+        {subtitle && <p className="mt-1 text-sm text-slate-400">{subtitle}</p>}
+      </div>
+      {onClear && (
+        <button
+          onClick={onClear}
+          className="px-3 py-1.5 rounded-lg border border-red-500/20 hover:border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-xs font-semibold flex items-center gap-1.5 shrink-0 cursor-pointer select-none"
+          title="Clear all page configuration"
+        >
+          <Trash2 size={12} />
+          Clear Page
+        </button>
+      )}
     </div>
   );
 }
@@ -223,5 +243,75 @@ export function EmptyState({ icon, title, description }: { icon?: ReactNode; tit
       <p className="font-semibold text-slate-400">{title}</p>
       {description && <p className="text-sm text-slate-500 max-w-xs">{description}</p>}
     </div>
+  );
+}
+
+// ── Modal / Dialog ──────────────────────────────────────────────────
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: ReactNode;
+}
+
+export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+  if (!isOpen) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in" style={{ zIndex: 9999 }}>
+      <div className="bg-[#121832] border border-white/10 rounded-2xl w-full max-w-4xl p-6 shadow-2xl relative animate-pop-in flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between border-b border-white/[0.06] pb-3 mb-4 shrink-0">
+          <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+            {title}
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-300 font-bold text-xl px-1.5 transition-colors cursor-pointer select-none"
+            aria-label="Close modal"
+          >
+            ×
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ConfirmModal ───────────────────────────────────────────────────
+interface ConfirmModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+}
+
+export function ConfirmModal({
+  isOpen,
+  onClose,
+  onConfirm,
+  title,
+  message,
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
+}: ConfirmModalProps) {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={title}>
+      <div className="space-y-4">
+        <p className="text-sm text-slate-300 leading-relaxed">{message}</p>
+        <div className="flex justify-end gap-3 pt-3 border-t border-white/[0.06]">
+          <Button variant="ghost" onClick={onClose}>
+            {cancelLabel}
+          </Button>
+          <Button variant="primary" onClick={() => { onConfirm(); onClose(); }}>
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }

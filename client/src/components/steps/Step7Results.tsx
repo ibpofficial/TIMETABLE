@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Printer, Download, Search, Sparkles, AlertCircle, Calendar, Users, Home, ChevronLeft, Save, Loader2, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTimetableStore } from '../../store/useTimetableStore';
-import { Button, Card, SectionHeader, Select, Input, Badge, FormField } from '../ui';
+import { Button, Card, SectionHeader, Select, Input, Badge, FormField, ConfirmModal } from '../ui';
 import { fetchAiSuggestFix } from '../../api/client';
 import { fsSaveTimetable } from '../../lib/firestore';
 import type { Assignment, ScheduleSolution } from '../../types';
@@ -30,6 +30,7 @@ export function Step7Results() {
   const [aiSuggestions, setAiSuggestions] = useState<string>('');
   const [loadingAi, setLoadingAi] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Sync selectors with store data changes
   useEffect(() => {
@@ -359,6 +360,7 @@ export function Step7Results() {
         <SectionHeader
           title="Step 7 — Timetable Solution"
           subtitle="Browse generated schedules, search elements, or print and export configurations. Drag sessions to adjust."
+          onClear={() => setShowClearConfirm(true)}
         />
       </div>
 
@@ -671,6 +673,19 @@ export function Step7Results() {
           </table>
         </div>
       </Card>
+
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={() => {
+          store.clearStepData(6); // Clears the generated solution & logs
+          store.setStep(6); // Redirect to generate step
+          toast.success('Schedule results cleared.');
+        }}
+        title="Clear Timetable Solution"
+        message="Are you sure you want to clear the current generated timetable results and go back to Step 6?"
+        confirmLabel="Clear Page"
+      />
     </div>
   );
 }
