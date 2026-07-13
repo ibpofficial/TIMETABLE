@@ -160,7 +160,26 @@ export function Step2Batches() {
               <Chip
                 key={b}
                 label={`${b} (${batchSizes[b] || 60} students)`}
-                onRemove={() => removeBatch(b)}
+                onRemove={() => {
+                  const batchToDelete = b;
+                  const prevSize = batchSizes[b] || 60;
+                  const prevSubjects = [...useTimetableStore.getState().subjects];
+                  const prevBatchDetails = { ...useTimetableStore.getState().batchDetails };
+
+                  removeBatch(b);
+                  toast.success(`Removed batch "${batchToDelete}"`, {
+                    action: {
+                      label: 'Undo',
+                      onClick: () => {
+                        addBatch(batchToDelete, prevSize);
+                        useTimetableStore.setState({
+                          subjects: prevSubjects,
+                          batchDetails: prevBatchDetails
+                        });
+                      }
+                    }
+                  });
+                }}
                 color="blue"
               />
             ))}

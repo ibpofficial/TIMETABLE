@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { Download, Upload, RotateCcw, Save, Database, Trash2, Loader2, Sun, Moon } from 'lucide-react';
 import { useTimetableStore } from '../store/useTimetableStore';
@@ -12,6 +12,31 @@ export function Header() {
   const store = useTimetableStore();
   const [saving, setSaving] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [autosaveStatus, setAutosaveStatus] = useState('synced');
+
+  useEffect(() => {
+    const unsub = useTimetableStore.subscribe((state, prevState) => {
+      if (
+        state.days !== prevState.days ||
+        state.startTime !== prevState.startTime ||
+        state.endTime !== prevState.endTime ||
+        state.theoryRooms !== prevState.theoryRooms ||
+        state.labRooms !== prevState.labRooms ||
+        state.batches !== prevState.batches ||
+        state.faculties !== prevState.faculties ||
+        state.subjects !== prevState.subjects ||
+        state.breaks !== prevState.breaks ||
+        state.events !== prevState.events ||
+        state.departments !== prevState.departments ||
+        state.programs !== prevState.programs
+      ) {
+        setAutosaveStatus('saving...');
+        const t = setTimeout(() => setAutosaveStatus('synced'), 600);
+        return () => clearTimeout(t);
+      }
+    });
+    return unsub;
+  }, []);
 
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('theme');
@@ -187,6 +212,11 @@ export function Header() {
             </h1>
             <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-widest flex items-center gap-1.5">
               Smart Constraint-Aware Scheduler
+              <span className={`inline-flex items-center gap-1 text-[9px] font-mono lowercase tracking-normal border px-1.5 py-0.5 rounded-md transition-all duration-300
+                ${autosaveStatus === 'saving...' ? 'border-amber-500/25 bg-amber-500/10 text-amber-400' : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400/90'}`}>
+                <span className={`w-1 h-1 rounded-full ${autosaveStatus === 'saving...' ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 animate-pulse'}`} />
+                {autosaveStatus}
+              </span>
             </p>
           </div>
         </div>

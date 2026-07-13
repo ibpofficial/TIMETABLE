@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useTimetableStore, type WizardStep } from '../store/useTimetableStore';
-import { CheckIcon, ChevronRight, ChevronLeft } from 'lucide-react';
+import { CheckIcon, ChevronRight, ChevronLeft, Keyboard, Sparkles, X } from 'lucide-react';
 import { Header } from './Header';
 import { Step0Departments } from './steps/Step0Departments';
 import { Step1Institution } from './steps/Step1Institution';
@@ -12,6 +12,9 @@ import { Step6Generate } from './steps/Step6Generate';
 import { Step7Results } from './steps/Step7Results';
 import { AiPanel } from './AiPanel';
 import { TimetableHealthChecker } from './TimetableHealthChecker';
+import { CommandPalette } from './CommandPalette';
+import { OnboardingTour } from './OnboardingTour';
+import { ValidationSummary } from './ValidationSummary';
 
 const STEPS = [
   { id: 0, label: 'Departments' },
@@ -25,8 +28,87 @@ const STEPS = [
 ] as const;
 
 export function Wizard() {
-  const { currentStep, setStep } = useTimetableStore();
+  const store = useTimetableStore();
+  const { currentStep, setStep } = store;
   const stepRefs = useRef<(HTMLLIElement | null)[]>([]);
+
+  // UX Upgrade state
+  const [showProgressBanner, setShowProgressBanner] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showOnboardingTour, setShowOnboardingTour] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Check progress on mount
+  useEffect(() => {
+    const hasProgress = store.batches.length > 0 || store.faculties.length > 0 || store.theoryRooms.length > 0;
+    const bannerSeen = sessionStorage.getItem('ibp_progress_banner_seen');
+    if (hasProgress && !bannerSeen) {
+      setShowProgressBanner(true);
+    }
+
+    const tourCompleted = localStorage.getItem('ibp_tour_completed');
+    if (!tourCompleted) {
+      const t = setTimeout(() => setShowOnboardingTour(true), 1500);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
+  const dismissProgressBanner = () => {
+    setShowProgressBanner(false);
+    sessionStorage.setItem('ibp_progress_banner_seen', 'true');
+  };
+
+  // Keyboard listeners for Alt+Arrows, Ctrl+S, Ctrl+K, ?
+  useEffect(() => {
+    const handleGlobalKeys = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.getAttribute('contenteditable') === 'true'
+      );
+
+      // Ctrl+K / Cmd+K -> Command Palette
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+
+      // Ctrl+S / Cmd+S -> Save configuration to database
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault();
+        const saveBtn = document.getElementById('btn-cloud-save');
+        saveBtn?.click();
+      }
+
+      if (isTyping) return;
+
+      // Alt+Right -> Next step
+      if (e.altKey && e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (currentStep < 7) {
+          setStep((currentStep + 1) as WizardStep);
+        }
+      }
+
+      // Alt+Left -> Back step
+      if (e.altKey && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (currentStep > 0) {
+          setStep((currentStep - 1) as WizardStep);
+        }
+      }
+
+      // ? or Shift+? -> Shortcuts Modal
+      if (e.key === '?') {
+        e.preventDefault();
+        setShowShortcutsModal(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeys);
+    return () => window.removeEventListener('keydown', handleGlobalKeys);
+  }, [currentStep]);
 
   // Keyboard navigation for step list
   const handleKeyDown = (e: React.KeyboardEvent, idx: number) => {
@@ -64,6 +146,21 @@ export function Wizard() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      {showProgressBanner && (
+        <div className="bg-brand/10 border-b border-brand/20 px-6 py-3 flex items-center justify-between no-print animate-fade-in relative z-50">
+          <div className="flex items-center gap-2.5 text-xs font-semibold text-brand-light">
+            <span className="flex h-2 w-2 rounded-full bg-brand animate-ping" />
+            <span>Welcome back! We restored your scheduling progress from your local cache. Resume where you left off.</span>
+          </div>
+          <button
+            onClick={dismissProgressBanner}
+            className="text-[10px] uppercase font-bold text-slate-400 hover:text-slate-200 cursor-pointer select-none"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
       <Header />
 
       <main className={`flex-1 max-w-[1400px] mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 gap-6 print:block print:p-0 print:m-0 transition-all duration-300 ${collapsed ? 'lg:grid-cols-[70px_1fr]' : 'lg:grid-cols-[280px_1fr]'}`}>
@@ -164,10 +261,78 @@ export function Wizard() {
         </div>
       </main>
 
-      <footer className="max-w-[1400px] mx-auto w-full px-6 py-4 flex justify-between items-center border-t border-white/[0.06] text-slate-500 text-sm no-print">
-        <span>© 2025 IBP Timetable Generator • NEP 2020 Ready</span>
-        <span className="text-xs opacity-50">Constraint-aware scheduling</span>
+      <footer className="max-w-[1400px] mx-auto w-full px-6 py-4 flex flex-col sm:flex-row justify-between items-center border-t border-white/[0.06] text-slate-500 text-xs no-print gap-4">
+        <div className="flex flex-wrap items-center gap-4.5">
+          <span>© 2025 IBP Timetable Generator • NEP 2020 Ready</span>
+          <span className="hidden sm:inline text-slate-600">|</span>
+          <button
+            onClick={() => setShowOnboardingTour(true)}
+            className="hover:text-brand-light transition-colors flex items-center gap-1 cursor-pointer font-bold"
+          >
+            <Sparkles size={11} /> Guided Tour
+          </button>
+          <button
+            onClick={() => setShowShortcutsModal(true)}
+            className="hover:text-brand-light transition-colors flex items-center gap-1 cursor-pointer font-bold"
+          >
+            <Keyboard size={11} /> Shortcuts (?)
+          </button>
+        </div>
+        <span className="opacity-50 text-[10px]">Constraint-aware scheduling • Press <kbd className="bg-white/5 border border-white/10 px-1 rounded text-[9px]">Ctrl+K</kbd> to search</span>
       </footer>
+
+      {/* Cmd+K Command Palette */}
+      <CommandPalette isOpen={isCommandPaletteOpen} onClose={() => setIsCommandPaletteOpen(false)} />
+
+      {/* Guided Onboarding Tour */}
+      <OnboardingTour isOpen={showOnboardingTour} onClose={() => setShowOnboardingTour(false)} />
+
+      {/* Live warnings counter floating summary */}
+      <ValidationSummary />
+
+      {/* Keyboard Shortcuts Modal */}
+      {showShortcutsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in" style={{ zIndex: 99999 }}>
+          <div className="bg-[#0b0e22]/95 border border-white/[0.08] rounded-2xl w-full max-w-sm p-6 shadow-2xl relative animate-pop-in">
+            <button
+              onClick={() => setShowShortcutsModal(false)}
+              className="absolute right-4 top-4 p-1.5 rounded-xl hover:bg-white/[0.06] text-slate-500 hover:text-slate-300 transition-all cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+            <h3 className="text-sm font-black text-slate-100 flex items-center gap-2 border-b border-white/[0.06] pb-3 mb-4 uppercase tracking-wider">
+              <Keyboard size={15} className="text-brand-light" />
+              Keyboard Shortcuts
+            </h3>
+            <div className="space-y-3.5 text-xs text-slate-300 font-medium">
+              <div className="flex justify-between items-center">
+                <span>Next Step</span>
+                <kbd className="bg-white/5 border border-white/10 px-2 py-0.5 rounded font-mono text-[10px] text-slate-400">Alt + →</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Back Step</span>
+                <kbd className="bg-white/5 border border-white/10 px-2 py-0.5 rounded font-mono text-[10px] text-slate-400">Alt + ←</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Command Palette</span>
+                <kbd className="bg-white/5 border border-white/10 px-2 py-0.5 rounded font-mono text-[10px] text-slate-400">Ctrl + K</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Save Database</span>
+                <kbd className="bg-white/5 border border-white/10 px-2 py-0.5 rounded font-mono text-[10px] text-slate-400">Ctrl + S</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Toggle AI Assistant</span>
+                <kbd className="bg-white/5 border border-white/10 px-2 py-0.5 rounded font-mono text-[10px] text-slate-400">Ctrl + I</kbd>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Show Shortcuts help</span>
+                <kbd className="bg-white/5 border border-white/10 px-2 py-0.5 rounded font-mono text-[10px] text-slate-400">?</kbd>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

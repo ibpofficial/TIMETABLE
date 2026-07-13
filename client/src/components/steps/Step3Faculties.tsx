@@ -11,7 +11,8 @@ let facIdCounter = 1;
 const genFacId = () => `F${facIdCounter++}_${Date.now().toString(36)}`;
 
 export function Step3Faculties() {
-  const { faculties, addFaculty, updateFaculty, removeFaculty, days } = useTimetableStore();
+  const store = useTimetableStore();
+  const { faculties, addFaculty, updateFaculty, removeFaculty, days, subjects } = store;
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [form, setForm] = useState({
     name: '', leaves: 1, maxWeeklySlots: 18, maxDailySlots: '' as string | number,
@@ -292,8 +293,20 @@ export function Step3Faculties() {
         onClose={() => setDeleteConfirmFacId(null)}
         onConfirm={() => {
           if (deleteConfirmFacId) {
-            removeFaculty(deleteConfirmFacId);
-            toast.success('Faculty member removed successfully!');
+            const facultyToDelete = faculties.find(f => f.id === deleteConfirmFacId);
+            if (facultyToDelete) {
+              const prevSubjects = [...subjects];
+              removeFaculty(deleteConfirmFacId);
+              toast.success(`Removed faculty "${facultyToDelete.name}"`, {
+                action: {
+                  label: 'Undo',
+                  onClick: () => {
+                    addFaculty(facultyToDelete);
+                    useTimetableStore.setState({ subjects: prevSubjects });
+                  }
+                }
+              });
+            }
           }
         }}
         title="Delete Faculty Member"

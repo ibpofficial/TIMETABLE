@@ -487,12 +487,22 @@ export function Step4Subjects() {
         onClose={() => setDeleteConfirmSubjId(null)}
         onConfirm={() => {
           if (deleteConfirmSubjId) {
-            removeSubject(deleteConfirmSubjId);
-            toast.success('Subject removed successfully!');
+            const subjectToDelete = subjects.find(s => s.id === deleteConfirmSubjId);
+            if (subjectToDelete) {
+              removeSubject(deleteConfirmSubjId);
+              toast.success(`Removed subject "${subjectToDelete.name}"`, {
+                action: {
+                  label: 'Undo',
+                  onClick: () => {
+                    addSubject(subjectToDelete);
+                  }
+                }
+              });
+            }
           }
         }}
         title="Delete Subject"
-        message="Are you sure you want to delete this course subject? This cannot be undone."
+        message="Are you sure you want to delete this course subject?"
         confirmLabel="Delete"
       />
     </div>

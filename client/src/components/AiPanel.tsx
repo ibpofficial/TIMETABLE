@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Sparkles, Send, Minimize2, Maximize2, Loader2,
-  Zap, Users, Building, AlertTriangle, Bot, X
+  Zap, Users, Building, AlertTriangle, Bot, X,
+  Copy, RotateCcw
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useTimetableStore } from '../store/useTimetableStore';
 import { fetchAiTip, fetchAiAgent } from '../api/client';
 
@@ -71,6 +73,20 @@ export function AiPanel() {
   const store = useTimetableStore();
   const { currentStep } = store;
 
+  const getFollowUpSuggestions = (content: string): string[] => {
+    const text = content.toLowerCase();
+    if (text.includes('conflict') || text.includes('failed') || text.includes('diagnostics') || text.includes('unplaced')) {
+      return ['Check all conflicts', 'Suggest improvements', 'Room utilization'];
+    }
+    if (text.includes('faculty') || text.includes('workload') || text.includes('teacher')) {
+      return ['Faculty workloads', 'Check all conflicts', 'Suggest improvements'];
+    }
+    if (text.includes('room') || text.includes('utilization') || text.includes('capacity')) {
+      return ['Room utilization', 'Suggest improvements', 'Check all conflicts'];
+    }
+    return ['Suggest improvements', 'Faculty workloads', 'Room utilization'];
+  };
+
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'coach'>('chat');
 
@@ -106,7 +122,8 @@ export function AiPanel() {
   const [tipLoaded, setTipLoaded] = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const streamIntervalRef = useRef<any>(null);
 
   // Reset coach on step change
   useEffect(() => { setTipLoaded(false); setTip(''); }, [currentStep]);
@@ -115,9 +132,26 @@ export function AiPanel() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
-  // Clean up active queries on unmount
+  // Clean up active queries and add Ctrl+I collapse shortcut listener
   useEffect(() => {
+    const handleKeys = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (
+        activeEl.tagName === 'INPUT' ||
+        activeEl.tagName === 'TEXTAREA' ||
+        activeEl.getAttribute('contenteditable') === 'true'
+      );
+      if (isTyping) return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        setIsCollapsed(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeys);
+
     return () => {
+      window.removeEventListener('keydown', handleKeys);
       if (abortControllerRef.current) abortControllerRef.current.abort();
       if (coachAbortControllerRef.current) coachAbortControllerRef.current.abort();
     };
@@ -155,6 +189,57 @@ export function AiPanel() {
     solution: store.solution,
   });
 
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Response copied to clipboard!');
+  };
+
+  const handleRegenerate = () => {
+    if (messages.length < 2 || loading) return;
+    let lastUserMessageIdx = -1;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') {
+        lastUserMessageIdx = i;
+        break;
+      }
+    }
+    if (lastUserMessageIdx === -1) return;
+
+    const userMsg = messages[lastUserMessageIdx];
+    setMessages(prev => prev.slice(0, lastUserMessageIdx));
+    sendMessage(userMsg.content);
+  };
+
+  const streamMessage = (fullText: string, toolsUsed?: string[]) => {
+    setLoading(false);
+    if (streamIntervalRef.current) {
+      clearInterval(streamIntervalRef.current);
+    }
+
+    const timestamp = new Date();
+    setMessages(prev => [...prev, {
+      role: 'assistant',
+      content: '',
+      toolsUsed,
+      timestamp,
+    }]);
+
+    let currentLength = 0;
+    const speed = 15;
+    streamIntervalRef.current = setInterval(() => {
+      currentLength += speed;
+      if (currentLength >= fullText.length) {
+        if (streamIntervalRef.current) {
+          clearInterval(streamIntervalRef.current);
+          streamIntervalRef.current = null;
+        }
+        setMessages(prev => prev.map(m => m.timestamp === timestamp ? { ...m, content: fullText } : m));
+      } else {
+        setMessages(prev => prev.map(m => m.timestamp === timestamp ? { ...m, content: fullText.substring(0, currentLength) + '▍' } : m));
+      }
+    }, 20);
+  };
+
   const sendMessage = async (text: string) => {
     const userText = text.trim();
     if (!userText || loading) return;
@@ -167,6 +252,11 @@ export function AiPanel() {
       return;
     }
 
+    if (streamIntervalRef.current) {
+      clearInterval(streamIntervalRef.current);
+      streamIntervalRef.current = null;
+    }
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -174,25 +264,23 @@ export function AiPanel() {
     abortControllerRef.current = controller;
 
     setInput('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+
     const userMsg: ChatMessage = { role: 'user', content: userText, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
     setLoading(true);
     setSessionCalls(c => c + 1);
 
     try {
-      // Build conversation history (last 8 messages for context)
       const history = [...messages.slice(-8), userMsg].map(m => ({
         role: m.role,
         content: m.content,
       }));
 
       const { reply, toolsUsed } = await fetchAiAgent(history, buildStoreSnapshot(), controller.signal);
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: reply,
-        toolsUsed,
-        timestamp: new Date(),
-      }]);
+      streamMessage(reply, toolsUsed);
     } catch (err: any) {
       if (err.name === 'AbortError') {
         setMessages(prev => [...prev, {
@@ -207,8 +295,8 @@ export function AiPanel() {
           timestamp: new Date(),
         }]);
       }
-    } finally {
       setLoading(false);
+    } finally {
       if (abortControllerRef.current === controller) {
         abortControllerRef.current = null;
       }
@@ -291,7 +379,7 @@ export function AiPanel() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold border ${sessionCalls >= MAX_CALLS ? 'bg-red-500/10 text-red-400 border-red-500/20' : sessionCalls > 40 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-brand/10 text-brand border-brand/20'}`}>
+          <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold border ${sessionCalls >= MAX_CALLS ? 'bg-red-500/10 text-red-400' : sessionCalls > 40 ? 'bg-amber-500/10 text-amber-400' : 'bg-brand/10 text-brand'}`}>
             {sessionCalls}/{MAX_CALLS} queries
           </span>
           {/* Tabs */}
@@ -316,28 +404,67 @@ export function AiPanel() {
       {activeTab === 'chat' && (
         <div className="flex flex-col h-[480px]">
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4.5 min-h-0 scrollbar-thin">
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex gap-3.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs shrink-0 font-extrabold ${msg.role === 'user' ? 'bg-brand/20 text-brand-light border border-brand/35' : 'bg-gradient-to-br from-brand to-brand-light text-white shadow-md shadow-brand/10'}`}>
-                  {msg.role === 'user' ? 'U' : <Bot size={15} />}
-                </div>
-                <div className={`max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1.5`}>
-                  <div className={`rounded-3xl px-5 py-4 ${msg.role === 'user' ? 'bg-[#1a214d]/50 border border-brand/25 rounded-tr-none text-slate-100 shadow-md' : 'bg-[#111736]/65 border border-white/[0.06] border-l-4 border-l-brand rounded-tl-none text-slate-200 shadow-inner'}`}>
-                    <RenderMarkdown text={msg.content} />
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4.5 min-h-0 scrollbar-thin animate-fade-in">
+            {messages.map((msg, i) => {
+              const isLastMessage = i === messages.length - 1;
+              return (
+                <div key={i} className={`flex gap-3.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs shrink-0 font-extrabold ${msg.role === 'user' ? 'bg-brand/20 text-brand-light border border-brand/35' : 'bg-gradient-to-br from-brand to-brand-light text-white shadow-md shadow-brand/10'}`}>
+                    {msg.role === 'user' ? 'U' : <Bot size={15} />}
                   </div>
-                  {msg.toolsUsed && msg.toolsUsed.length > 0 && (
-                    <div className="flex gap-1.5 flex-wrap mt-0.5">
-                      {msg.toolsUsed.map((t, j) => (
-                        <span key={j} className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded-full flex items-center gap-1 font-bold">
-                          🔧 {t}
-                        </span>
-                      ))}
+                  <div className="max-w-[82%] flex flex-col gap-1.5 relative group">
+                    <div className={`rounded-3xl px-5 py-4 ${msg.role === 'user' ? 'bg-[#1a214d]/50 border border-brand/25 rounded-tr-none text-slate-100 shadow-md' : 'bg-[#111736]/65 border border-white/[0.06] border-l-4 border-l-brand rounded-tl-none text-slate-200 shadow-inner'}`}>
+                      <RenderMarkdown text={msg.content} />
                     </div>
-                  )}
+                    {/* Hover actions */}
+                    {msg.role === 'assistant' && (
+                      <div className="absolute right-3 top-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-[#111736]/90 border border-white/5 rounded-lg p-1 shadow-md">
+                        <button
+                          onClick={() => copyToClipboard(msg.content)}
+                          className="p-1 hover:bg-white/[0.08] rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
+                          title="Copy to clipboard"
+                        >
+                          <Copy size={11} />
+                        </button>
+                        {isLastMessage && !loading && (
+                          <button
+                            onClick={handleRegenerate}
+                            className="p-1 hover:bg-white/[0.08] rounded text-slate-400 hover:text-white transition-colors cursor-pointer"
+                            title="Regenerate response"
+                          >
+                            <RotateCcw size={11} />
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    {msg.toolsUsed && msg.toolsUsed.length > 0 && (
+                      <div className="flex gap-1.5 flex-wrap mt-0.5">
+                        {msg.toolsUsed.map((t, j) => (
+                          <span key={j} className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded-full flex items-center gap-1 font-bold">
+                            🔧 {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {/* Follow-up suggestions */}
+                    {isLastMessage && msg.role === 'assistant' && !loading && (
+                      <div className="flex flex-wrap gap-2 mt-3 animate-fade-in">
+                        {getFollowUpSuggestions(msg.content).map((suggestion, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => sendMessage(suggestion)}
+                            disabled={loading || sessionCalls >= MAX_CALLS}
+                            className="px-3.5 py-1.5 rounded-full bg-[#1b2247]/40 hover:bg-[#202b5e]/60 border border-white/[0.08] hover:border-brand/35 text-[10px] font-bold text-brand-light hover:text-white transition-all cursor-pointer active:scale-95 select-none"
+                          >
+                            {suggestion} →
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {loading && (
               <div className="flex gap-3.5">
                 <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center shrink-0">
@@ -362,41 +489,64 @@ export function AiPanel() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* Quick action buttons */}
-          <div className="px-6 pb-4 pt-1 flex flex-wrap gap-2 shrink-0 border-t border-white/[0.03] mt-auto">
-            {QUICK_ACTIONS.map((qa, i) => (
-              <button
-                key={i}
-                onClick={() => sendMessage(qa.msg)}
-                disabled={loading || sessionCalls >= MAX_CALLS}
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#1b2247]/50 border border-brand/20 hover:border-brand-light text-[11px] text-slate-300 hover:text-white hover:bg-gradient-to-r hover:from-brand/15 hover:to-brand-light/10 hover:shadow-lg hover:shadow-brand/5 transition-all duration-300 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer select-none font-medium"
-              >
-                <span className="text-brand-light filter drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]">{qa.icon}</span>
-                <span>{qa.label}</span>
-              </button>
-            ))}
-          </div>
+          {/* Fresh Conversation suggestion chips */}
+          {messages.length <= 1 && !input.trim() && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 px-6 pb-4">
+              {QUICK_ACTIONS.map((qa, i) => (
+                <button
+                  key={i}
+                  onClick={() => sendMessage(qa.msg)}
+                  disabled={loading || sessionCalls >= MAX_CALLS}
+                  className="text-left p-3.5 rounded-2xl bg-[#111633]/55 border border-white/[0.06] hover:border-brand-light/30 hover:bg-[#151c42]/60 hover:shadow-lg hover:shadow-brand/5 transition-all cursor-pointer group text-xs relative overflow-hidden"
+                >
+                  <div className="flex items-start gap-2.5">
+                    <div className="p-2 rounded-xl bg-brand/10 text-brand-light group-hover:bg-brand/20 transition-all shrink-0 mt-0.5">
+                      {qa.icon}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-200 group-hover:text-brand-light transition-colors">{qa.label}</p>
+                      <p className="text-[10px] text-slate-500 mt-1 leading-normal">{qa.msg}</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Input pill */}
-          <div className="px-6 pb-6 pt-4 flex gap-2.5 items-center border-t border-white/[0.05] bg-[#0c102b]/40 shrink-0">
-            <div className="relative flex-1 flex items-center">
-              <input
-                ref={inputRef}
+          <div className="px-6 pb-4 pt-4 flex flex-col gap-2 border-t border-white/[0.05] bg-[#0c102b]/40 shrink-0">
+            <div className="relative flex items-end bg-[#070b1f] border border-white/[0.08] hover:border-brand/40 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/15 rounded-2xl p-2 transition-all duration-200">
+              <textarea
+                ref={textareaRef}
                 value={input}
-                onChange={e => setInput(e.target.value)}
+                onChange={e => {
+                  setInput(e.target.value);
+                  const tx = textareaRef.current;
+                  if (tx) {
+                    tx.style.height = 'auto';
+                    tx.style.height = `${Math.min(tx.scrollHeight, 140)}px`;
+                  }
+                }}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-                placeholder={sessionCalls >= MAX_CALLS ? 'Session limit reached.' : 'Ask AI to optimize, solve conflicts, or check workloads...'}
+                placeholder={sessionCalls >= MAX_CALLS ? 'Session limit reached.' : 'Ask AI to optimize, solve conflicts, check workloads...'}
                 disabled={loading || sessionCalls >= MAX_CALLS}
-                className="w-full bg-[#070b1f] border border-white/[0.08] hover:border-brand/40 focus:border-brand focus:ring-2 focus:ring-brand/15 rounded-2xl pl-5 pr-14 py-4 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none transition-all duration-200 disabled:opacity-50"
+                rows={1}
+                className="w-full bg-transparent resize-none pl-3 pr-14 py-2.5 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
               />
               <button
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || loading || sessionCalls >= MAX_CALLS}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-gradient-to-br from-brand via-brand to-brand-light flex items-center justify-center disabled:opacity-35 disabled:cursor-not-allowed hover:scale-[1.05] active:scale-90 hover:shadow-lg hover:shadow-brand/20 transition-all duration-200 cursor-pointer select-none"
+                className="absolute right-2 bottom-2 w-9 h-9 rounded-xl bg-gradient-to-br from-brand via-brand to-brand-light flex items-center justify-center disabled:opacity-35 disabled:cursor-not-allowed hover:scale-[1.05] active:scale-90 hover:shadow-lg hover:shadow-brand/20 transition-all duration-200 cursor-pointer select-none"
                 title="Send"
               >
-                {loading ? <Loader2 size={14} className="animate-spin text-white" /> : <Send size={14} className="text-white" />}
+                {loading ? <Loader2 size={13} className="animate-spin text-white" /> : <Send size={13} className="text-white" />}
               </button>
+            </div>
+            <div className="text-[10px] text-slate-500 font-mono flex justify-between px-2 shrink-0">
+              <span>{input.length} characters</span>
+              <span className={sessionCalls >= MAX_CALLS ? 'text-red-400 font-bold' : sessionCalls > 40 ? 'text-amber-400' : 'text-slate-500'}>
+                {sessionCalls} / {MAX_CALLS} session calls used
+              </span>
             </div>
           </div>
         </div>
@@ -404,16 +554,21 @@ export function AiPanel() {
 
       {/* ── Coach Tab ─────────────────────────────────────────────────── */}
       {activeTab === 'coach' && (
-        <div className="flex-1 flex flex-col gap-4.5 p-6 h-[480px]">
-          <div className="flex items-center justify-between shrink-0">
-            <div>
-              <p className="text-xs font-bold text-slate-200">Step {currentStep} Coach Tips</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">Automated contextual guidelines for this wizard step</p>
+        <div className="flex-1 flex flex-col gap-4.5 p-6 h-[480px] bg-gradient-to-br from-[#1b1f38]/40 via-transparent to-transparent">
+          <div className="flex items-center justify-between shrink-0 bg-[#121630] border border-white/[0.04] p-4 rounded-2xl shadow-inner">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-center text-amber-400">
+                <Sparkles size={16} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-amber-400 uppercase tracking-wider leading-none">Automated Step Coach</p>
+                <p className="text-[10px] text-slate-400 mt-1">Automated guidelines for Step {currentStep}</p>
+              </div>
             </div>
             <button
               onClick={loadCoachTip}
               disabled={tipLoading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand/10 border border-brand/20 text-[10px] font-bold text-brand hover:bg-brand/20 transition-all active:scale-95 disabled:opacity-50 cursor-pointer select-none"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/25 text-[10px] font-bold text-amber-400 hover:bg-amber-500/20 transition-all active:scale-95 disabled:opacity-50 cursor-pointer select-none"
             >
               {tipLoading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
               {tipLoaded ? 'Refresh Tips' : 'Load Tips'}
@@ -422,8 +577,8 @@ export function AiPanel() {
 
           {!tipLoaded && !tipLoading && (
             <div className="flex-1 flex flex-col items-center justify-center gap-3.5 text-center">
-              <div className="w-11 h-11 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center shadow-lg shadow-brand/5 animate-bounce">
-                <Sparkles size={18} className="text-brand" />
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shadow-lg shadow-amber-500/5 animate-bounce">
+                <Sparkles size={18} className="text-amber-400" />
               </div>
               <div>
                 <p className="text-xs font-semibold text-slate-300">Tips Not Loaded</p>

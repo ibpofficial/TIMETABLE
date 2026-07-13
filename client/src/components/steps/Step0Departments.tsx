@@ -111,10 +111,31 @@ export function Step0Departments() {
                   </div>
                   <button
                     onClick={() => {
-                      if (!confirm(`Remove department "${dept.name}" and unlink all its programs?`)) return;
+                      const deptToDelete = dept;
+                      const prevPrograms = [...programs];
+                      const prevFaculties = [...useTimetableStore.getState().faculties];
+                      const prevSubjects = [...useTimetableStore.getState().subjects];
+                      const prevTheoryRooms = [...useTimetableStore.getState().theoryRooms];
+                      const prevLabRooms = [...useTimetableStore.getState().labRooms];
+                      
                       removeDepartment(dept.id);
+                      toast.success(`Removed department "${deptToDelete.name}"`, {
+                        action: {
+                          label: 'Undo',
+                          onClick: () => {
+                            addDepartment(deptToDelete);
+                            useTimetableStore.setState({
+                              programs: prevPrograms,
+                              faculties: prevFaculties,
+                              subjects: prevSubjects,
+                              theoryRooms: prevTheoryRooms,
+                              labRooms: prevLabRooms
+                            });
+                          }
+                        }
+                      });
                     }}
-                    className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors cursor-pointer"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -125,7 +146,20 @@ export function Step0Departments() {
                       <Chip
                         key={p.id}
                         label={p.name}
-                        onRemove={() => removeProgram(p.id)}
+                        onRemove={() => {
+                          const progToDelete = p;
+                          const prevSubjects = [...useTimetableStore.getState().subjects];
+                          removeProgram(p.id);
+                          toast.success(`Removed program "${progToDelete.name}"`, {
+                            action: {
+                              label: 'Undo',
+                              onClick: () => {
+                                addProgram(progToDelete);
+                                useTimetableStore.setState({ subjects: prevSubjects });
+                              }
+                            }
+                          });
+                        }}
                         color="blue"
                       />
                     ))}

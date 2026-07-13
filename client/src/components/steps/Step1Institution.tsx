@@ -128,7 +128,18 @@ export function Step1Institution() {
   };
 
   const handleDeleteRoom = (id: string) => {
-    setAllRooms(prev => prev.filter(r => r.id !== id));
+    const roomToDelete = allRooms.find(r => r.id === id);
+    if (roomToDelete) {
+      setAllRooms(prev => prev.filter(r => r.id !== id));
+      toast.success(`Removed room "${roomToDelete.name}"`, {
+        action: {
+          label: 'Undo',
+          onClick: () => {
+            setAllRooms(prev => [...prev, roomToDelete]);
+          }
+        }
+      });
+    }
   };
 
   const validate = () => {
