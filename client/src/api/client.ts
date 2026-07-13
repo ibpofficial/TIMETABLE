@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import type { JobState, SchedulerConfig } from '../types';
 import { TimetableSolver } from '../scheduler/solver';
 
@@ -145,8 +146,10 @@ export async function cancelJob(jobId: string): Promise<{ message: string }> {
 
 // ── AI Gateway Proxy Calls ───────────────────────────────────────────────────
 
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 export async function fetchAiTip(eventName: string, payload: unknown, context: unknown, signal?: AbortSignal): Promise<{ reply: string }> {
-  const response = await fetch('/api/ai/tip', {
+  const response = await fetch(`${API_BASE}/api/ai/tip`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -164,7 +167,7 @@ export async function fetchAiTip(eventName: string, payload: unknown, context: u
 }
 
 export async function fetchAiSuggestFix(diagnostics: unknown[], context: unknown, signal?: AbortSignal): Promise<{ suggestions: string }> {
-  const response = await fetch('/api/ai/suggest-fix', {
+  const response = await fetch(`${API_BASE}/api/ai/suggest-fix`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -186,7 +189,7 @@ export async function fetchAiAgent(
   storeState: unknown,
   signal?: AbortSignal
 ): Promise<{ reply: string; toolsUsed: string[] }> {
-  const response = await fetch('/api/ai/agent', {
+  const response = await fetch(`${API_BASE}/api/ai/agent`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

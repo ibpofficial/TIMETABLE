@@ -1,8 +1,11 @@
+/// <reference types="vite/client" />
 import type { SchedulerConfig, ScheduleSolution, SavedConfig } from '../types';
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 // Helper to make API calls to local SQLite backend
 async function fetchApi(url: string, options: RequestInit = {}) {
-  const response = await fetch(url, {
+  const response = await fetch(`${API_BASE}${url}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
