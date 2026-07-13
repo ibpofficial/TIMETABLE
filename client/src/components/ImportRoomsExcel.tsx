@@ -530,7 +530,7 @@ export default function ImportRoomsExcel({ onClose, currentRooms, onImport }: Im
                       <Select
                         value={row.type}
                         onChange={(e) => handleUpdateRoomType(row.id, e.target.value)}
-                        className="py-1 px-2 h-8 text-xs bg-[#121832] border-white/5 rounded max-w-[140px]"
+                        className="py-1 px-2 h-8 text-xs bg-slate-950 border-white/5 rounded max-w-[140px]"
                         disabled={!row.selected}
                       >
                         {ROOM_TYPES.map(t => (

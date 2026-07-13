@@ -37,9 +37,9 @@ export function Button({
   };
 
   const sizes: Record<string, string> = {
-    sm: 'px-3.5 py-2 text-xs',
-    md: 'px-4.5 py-3 text-sm',
-    lg: 'px-6 py-4 text-base',
+    sm: 'px-4 py-2 text-xs',
+    md: 'px-6 py-2.5 text-sm',
+    lg: 'px-8 py-3.5 text-base',
   };
 
   return (
@@ -122,7 +122,7 @@ export function Input({ error, className = '', ...rest }: InputProps) {
       {...rest}
       className={`
         w-full px-4 py-3 rounded-xl
-        bg-slate-950/45 border text-slate-200 text-sm font-medium
+        bg-slate-950 border text-slate-200 text-sm font-medium
         transition-all duration-300 ease-out placeholder:text-slate-600
         focus:outline-none focus:ring-2 focus:ring-brand/35 focus:border-brand
         ${error ? 'border-red-500/50' : 'border-white/5 hover:border-white/15'}
@@ -143,7 +143,7 @@ export function Select({ error, className = '', children, ...rest }: SelectProps
       {...rest}
       className={`
         w-full px-4 py-3 rounded-xl
-        bg-slate-950/45 border text-slate-200 text-sm font-medium
+        bg-slate-950 border text-slate-200 text-sm font-medium
         transition-all duration-300 ease-out
         focus:outline-none focus:ring-2 focus:ring-brand/35 focus:border-brand
         ${error ? 'border-red-500/50' : 'border-white/5 hover:border-white/15'}

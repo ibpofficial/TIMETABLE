@@ -381,7 +381,7 @@ export function Step1Institution() {
                   id="bldDefaultType"
                   value={bldDefaultType}
                   onChange={(e) => setBldDefaultType(e.target.value)}
-                  className="w-full bg-[#121832] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand"
+                  className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-brand"
                 >
                   {ROOM_TYPES.map(t => (
                     <option key={t.value} value={t.value}>{t.label}</option>
@@ -451,14 +451,14 @@ export function Step1Institution() {
                             type="text"
                             value={room.name}
                             onChange={(e) => handleUpdateRoom(room.id, { name: e.target.value.trim().toUpperCase() })}
-                            className="bg-slate-950/30 border border-white/10 hover:border-white/20 focus:border-brand focus:ring-1 focus:ring-brand/40 rounded-lg px-2.5 py-1.5 w-[95px] font-mono text-slate-200 text-xs transition-all focus:outline-none"
+                            className="bg-slate-950 border border-white/10 hover:border-white/20 focus:border-brand focus:ring-1 focus:ring-brand/40 rounded-lg px-2.5 py-1.5 w-[95px] font-mono text-slate-200 text-xs transition-all focus:outline-none"
                           />
                         </td>
                         <td className="py-3 px-3">
                           <select
                             value={room.type}
                             onChange={(e) => handleUpdateRoom(room.id, { type: e.target.value })}
-                            className="bg-slate-950/30 border border-white/10 hover:border-white/20 focus:border-brand focus:ring-1 focus:ring-brand/40 rounded-lg px-2 py-1.5 text-slate-200 text-xs transition-all focus:outline-none max-w-[140px]"
+                            className="bg-slate-950 border border-white/10 hover:border-white/20 focus:border-brand focus:ring-1 focus:ring-brand/40 rounded-lg px-2 py-1.5 text-slate-200 text-xs transition-all focus:outline-none max-w-[140px]"
                           >
                             {ROOM_TYPES.map(t => (
                               <option key={t.value} value={t.value}>{t.label.split(' (')[0]}</option>
@@ -471,7 +471,7 @@ export function Step1Institution() {
                             min="1"
                             value={room.capacity}
                             onChange={(e) => handleUpdateRoom(room.id, { capacity: Number(e.target.value) || 0 })}
-                            className="bg-slate-950/30 border border-white/10 hover:border-white/20 focus:border-brand focus:ring-1 focus:ring-brand/40 rounded-lg px-2 py-1.5 w-[65px] text-slate-200 text-center text-xs font-semibold transition-all focus:outline-none"
+                            className="bg-slate-950 border border-white/10 hover:border-white/20 focus:border-brand focus:ring-1 focus:ring-brand/40 rounded-lg px-2 py-1.5 w-[65px] text-slate-200 text-center text-xs font-semibold transition-all focus:outline-none"
                           />
                         </td>
                         <td className="py-3 px-3">

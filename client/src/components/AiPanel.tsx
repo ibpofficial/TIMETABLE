@@ -255,38 +255,40 @@ export function AiPanel() {
   // ── Collapsed state ──────────────────────────────────────────────────────
   if (isCollapsed) {
     return (
-      <div className="no-print w-full cursor-pointer" onClick={() => setIsCollapsed(false)}>
-        <Card className="border-[#28305a]/60 bg-gradient-to-r from-[#0e1430] to-[#0a0f24] flex flex-row items-center justify-between px-4 py-2.5 w-full hover:border-brand/35 hover:shadow-lg transition-all duration-300 rounded-2xl">
-          <div className="flex items-center gap-2.5">
-            <Bot size={14} className="text-brand animate-pulse" />
-            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">AI Scheduling Agent</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${sessionCalls >= MAX_CALLS ? 'bg-red-500/20 text-red-400' : 'bg-brand/20 text-brand'}`}>
-              {sessionCalls}/{MAX_CALLS} queries
-            </span>
+      <div className="no-print mt-8 cursor-pointer animate-fade-in" onClick={() => setIsCollapsed(false)}>
+        <div className="border border-white/[0.07] bg-gradient-to-r from-panel to-slate-950/80 flex flex-row items-center justify-between px-5 py-4 w-full hover:border-brand/30 hover:shadow-lg transition-all duration-300 rounded-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-7 h-7 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center">
+              <Bot size={13} className="text-brand animate-pulse" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-slate-200 uppercase tracking-widest leading-none block">AI Scheduling Assistant</span>
+              <span className="text-[10px] text-slate-500 mt-1 block">Context-aware timetable co-pilot</span>
+            </div>
           </div>
-          <button className="text-[10px] font-bold text-brand hover:text-brand-light flex items-center gap-1 cursor-pointer select-none">
-            Expand <Maximize2 size={10} />
+          <button className="text-[10px] font-bold text-brand hover:text-brand-light flex items-center gap-1.5 cursor-pointer select-none">
+            Expand Assistant <Maximize2 size={10} />
           </button>
-        </Card>
+        </div>
       </div>
     );
   }
 
   // ── Expanded state ───────────────────────────────────────────────────────
   return (
-    <Card className="border-white/10 bg-slate-950/40 backdrop-blur-xl relative overflow-hidden flex flex-col w-full no-print min-h-[420px] rounded-3xl shadow-2xl transition-all duration-300">
+    <div className="no-print mt-8 bg-gradient-to-br from-panel/90 to-slate-950/70 border border-white/[0.08] rounded-3xl shadow-2xl overflow-hidden relative backdrop-blur-xl animate-fade-in transition-all duration-300">
       {/* Glow */}
-      <div className="absolute top-0 right-0 w-48 h-48 bg-brand/5 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-12 -right-12 w-64 h-64 bg-brand/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4 shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center shadow-lg shadow-brand/10">
-            <Bot size={14} className="text-white" />
+      <div className="flex items-center justify-between border-b border-white/[0.06] px-6 py-4.5 shrink-0 relative z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand via-brand to-brand-light flex items-center justify-center shadow-lg shadow-brand/10">
+            <Bot size={15} className="text-white" />
           </div>
           <div>
-            <p className="text-xs font-black text-slate-200 uppercase tracking-widest">AI Scheduling Agent</p>
-            <p className="text-[10px] text-slate-500">Tool-calling · Context-aware · Live data</p>
+            <p className="text-xs font-black text-slate-200 uppercase tracking-widest leading-none">AI Scheduling Agent</p>
+            <p className="text-[10px] text-slate-500 mt-1">Tool-calling · Live context-aware timetable assistant</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -299,7 +301,7 @@ export function AiPanel() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold capitalize transition-all select-none cursor-pointer ${activeTab === tab ? 'bg-brand/20 text-brand' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold capitalize transition-all select-none cursor-pointer ${activeTab === tab ? 'bg-brand/25 text-brand-light border border-brand/20' : 'text-slate-500 hover:text-slate-300 border border-transparent'}`}
               >
                 {tab === 'chat' ? '💬 Chat' : '🎓 Coach'}
               </button>
@@ -313,22 +315,22 @@ export function AiPanel() {
 
       {/* ── Chat Tab ──────────────────────────────────────────────────── */}
       {activeTab === 'chat' && (
-        <>
+        <div className="flex flex-col h-[480px]">
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-[240px] max-h-[340px]">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4.5 min-h-0 scrollbar-thin">
             {messages.map((msg, i) => (
-              <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0 font-bold ${msg.role === 'user' ? 'bg-brand/20 text-brand' : 'bg-white/[0.06] text-slate-400'}`}>
-                  {msg.role === 'user' ? 'U' : <Bot size={13} />}
+              <div key={i} className={`flex gap-3.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className={`w-9 h-9 rounded-2xl flex items-center justify-center text-xs shrink-0 font-extrabold ${msg.role === 'user' ? 'bg-brand/20 text-brand-light border border-brand/35' : 'bg-gradient-to-br from-brand to-brand-light text-white shadow-md shadow-brand/10'}`}>
+                  {msg.role === 'user' ? 'U' : <Bot size={15} />}
                 </div>
-                <div className={`max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                  <div className={`rounded-2xl px-4 py-3 ${msg.role === 'user' ? 'bg-gradient-to-r from-brand/20 to-brand-light/10 border border-brand/35 rounded-tr-sm shadow-md shadow-brand/5' : 'bg-white/[0.03] border border-white/[0.08] rounded-tl-sm shadow-inner'}`}>
+                <div className={`max-w-[82%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1.5`}>
+                  <div className={`rounded-3xl px-5 py-4 ${msg.role === 'user' ? 'bg-[#1a214d]/50 border border-brand/25 rounded-tr-none text-slate-100 shadow-md' : 'bg-[#111736]/65 border border-white/[0.06] border-l-4 border-l-brand rounded-tl-none text-slate-200 shadow-inner'}`}>
                     <RenderMarkdown text={msg.content} />
                   </div>
                   {msg.toolsUsed && msg.toolsUsed.length > 0 && (
-                    <div className="flex gap-1 flex-wrap mt-0.5">
+                    <div className="flex gap-1.5 flex-wrap mt-0.5">
                       {msg.toolsUsed.map((t, j) => (
-                        <span key={j} className="text-[9px] font-mono bg-green-500/10 text-green-400 border border-green-500/25 px-1.5 py-0.5 rounded-full">
+                        <span key={j} className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 px-2 py-0.5 rounded-full flex items-center gap-1 font-bold">
                           🔧 {t}
                         </span>
                       ))}
@@ -338,11 +340,11 @@ export function AiPanel() {
               </div>
             ))}
             {loading && (
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-xl bg-white/[0.06] flex items-center justify-center">
-                  <Bot size={13} className="text-slate-400 animate-pulse" />
+              <div className="flex gap-3.5">
+                <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center shrink-0">
+                  <Bot size={15} className="text-white animate-pulse" />
                 </div>
-                <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl rounded-tl-sm px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="bg-[#111736]/65 border border-white/[0.06] rounded-3xl rounded-tl-none px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
                   <div className="flex items-center gap-2">
                     <Loader2 size={13} className="animate-spin text-brand-light" />
                     <span className="text-xs text-slate-400 italic font-mono">{thinkingText}</span>
@@ -353,7 +355,7 @@ export function AiPanel() {
                     }}
                     className="text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/25 px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer self-start sm:self-center select-none"
                   >
-                    <X size={11} /> Stop generating
+                    <X size={11} /> Stop
                   </button>
                 </div>
               </div>
@@ -362,89 +364,89 @@ export function AiPanel() {
           </div>
 
           {/* Quick action buttons */}
-          <div className="px-5 pb-3 pt-1 flex flex-wrap gap-2">
+          <div className="px-6 pb-4 pt-1 flex flex-wrap gap-2 shrink-0 border-t border-white/[0.03] mt-auto">
             {QUICK_ACTIONS.map((qa, i) => (
               <button
                 key={i}
                 onClick={() => sendMessage(qa.msg)}
                 disabled={loading || sessionCalls >= MAX_CALLS}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/[0.05] text-[11px] text-slate-400 hover:text-slate-100 hover:bg-brand/10 hover:border-brand/35 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer select-none"
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-[#1b2247]/50 border border-brand/20 hover:border-brand-light text-[11px] text-slate-300 hover:text-white hover:bg-gradient-to-r hover:from-brand/15 hover:to-brand-light/10 hover:shadow-lg hover:shadow-brand/5 transition-all duration-300 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer select-none font-medium"
               >
-                <span className="text-brand">{qa.icon}</span>
+                <span className="text-brand-light filter drop-shadow-[0_1px_2px_rgba(0,0,0,0.15)]">{qa.icon}</span>
                 <span>{qa.label}</span>
               </button>
             ))}
           </div>
 
           {/* Input pill */}
-          <div className="px-5 pb-5 pt-3 flex gap-2 items-center border-t border-white/[0.06] bg-[#0b0f24]/80 backdrop-blur-md shrink-0">
+          <div className="px-6 pb-6 pt-4 flex gap-2.5 items-center border-t border-white/[0.05] bg-[#0c102b]/40 shrink-0">
             <div className="relative flex-1 flex items-center">
               <input
                 ref={inputRef}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-                placeholder={sessionCalls >= MAX_CALLS ? 'Session limit reached.' : 'Ask about faculty loads, room conflicts, scheduling failures…'}
+                placeholder={sessionCalls >= MAX_CALLS ? 'Session limit reached.' : 'Ask AI to optimize, solve conflicts, or check workloads...'}
                 disabled={loading || sessionCalls >= MAX_CALLS}
-                className="w-full bg-[#0a0f28] border border-white/10 hover:border-white/20 focus:border-brand rounded-2xl pl-4 pr-12 py-3.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all disabled:opacity-50"
+                className="w-full bg-[#070b1f] border border-white/[0.08] hover:border-brand/40 focus:border-brand focus:ring-2 focus:ring-brand/15 rounded-2xl pl-5 pr-14 py-4 text-xs text-slate-200 placeholder:text-slate-500 focus:outline-none transition-all duration-200 disabled:opacity-50"
               />
               <button
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || loading || sessionCalls >= MAX_CALLS}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer select-none"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-xl bg-gradient-to-br from-brand via-brand to-brand-light flex items-center justify-center disabled:opacity-35 disabled:cursor-not-allowed hover:scale-[1.05] active:scale-90 hover:shadow-lg hover:shadow-brand/20 transition-all duration-200 cursor-pointer select-none"
                 title="Send"
               >
                 {loading ? <Loader2 size={14} className="animate-spin text-white" /> : <Send size={14} className="text-white" />}
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* ── Coach Tab ─────────────────────────────────────────────────── */}
       {activeTab === 'coach' && (
-        <div className="flex-1 flex flex-col gap-4 p-5">
-          <div className="flex items-center justify-between">
+        <div className="flex-1 flex flex-col gap-4.5 p-6 h-[480px]">
+          <div className="flex items-center justify-between shrink-0">
             <div>
-              <p className="text-sm font-bold text-slate-200">Step {currentStep} Coach Instructions</p>
-              <p className="text-xs text-slate-500">On-demand tips for the current wizard step</p>
+              <p className="text-xs font-bold text-slate-200">Step {currentStep} Coach Tips</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Automated contextual guidelines for this wizard step</p>
             </div>
             <button
               onClick={loadCoachTip}
               disabled={tipLoading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand/10 border border-brand/20 text-xs font-bold text-brand hover:bg-brand/20 transition-all active:scale-95 disabled:opacity-50 cursor-pointer select-none"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand/10 border border-brand/20 text-[10px] font-bold text-brand hover:bg-brand/20 transition-all active:scale-95 disabled:opacity-50 cursor-pointer select-none"
             >
-              {tipLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-              {tipLoaded ? 'Refresh Tips' : 'Load AI Coach Tips'}
+              {tipLoading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
+              {tipLoaded ? 'Refresh Tips' : 'Load Tips'}
             </button>
           </div>
 
           {!tipLoaded && !tipLoading && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center py-6">
-              <div className="w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center shadow-lg shadow-brand/5 animate-bounce">
-                <Sparkles size={20} className="text-brand" />
+            <div className="flex-1 flex flex-col items-center justify-center gap-3.5 text-center">
+              <div className="w-11 h-11 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center shadow-lg shadow-brand/5 animate-bounce">
+                <Sparkles size={18} className="text-brand" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-300">Coach Tips Not Loaded</p>
-                <p className="text-xs text-slate-500 mt-1">Click "Load AI Coach Tips" to get contextual advice for Step {currentStep}</p>
+                <p className="text-xs font-semibold text-slate-300">Tips Not Loaded</p>
+                <p className="text-[10px] text-slate-500 mt-1">Get custom automated scheduling advice for Step {currentStep}</p>
               </div>
             </div>
           )}
 
           {tipLoading && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-400 py-6">
-              <Loader2 size={24} className="animate-spin text-brand" />
-              <span className="text-sm italic">Generating step-specific coach instructions…</span>
+            <div className="flex-1 flex flex-col items-center justify-center gap-3.5 text-slate-400">
+              <Loader2 size={20} className="animate-spin text-brand" />
+              <span className="text-xs italic">Analyzing timetabling parameters…</span>
             </div>
           )}
 
           {tipLoaded && tip && (
-            <div className="flex-1 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 overflow-y-auto max-h-[300px]">
+            <div className="flex-1 bg-white/[0.01] border border-white/[0.05] rounded-2xl p-4.5 overflow-y-auto min-h-0 shadow-inner">
               <RenderMarkdown text={tip} />
             </div>
           )}
         </div>
       )}
-    </Card>
+    </div>
   );
 }

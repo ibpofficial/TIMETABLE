@@ -158,7 +158,7 @@ export function Step0Departments() {
               <select
                 value={progForm.departmentId}
                 onChange={e => setProgForm({ ...progForm, departmentId: e.target.value })}
-                className="w-full bg-[#0d1225] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand"
+                className="w-full bg-slate-950 border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand"
               >
                 <option value="">Select department…</option>
                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
@@ -192,7 +192,7 @@ export function Step0Departments() {
                     <select
                       value={detail?.programId || ''}
                       onChange={e => setBatchDetails(batch, e.target.value, detail?.semester || 1)}
-                      className="flex-1 bg-[#0d1225] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand"
+                      className="flex-1 bg-slate-950 border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand"
                     >
                       <option value="">No program linked</option>
                       {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -200,7 +200,7 @@ export function Step0Departments() {
                     <select
                       value={detail?.semester || 1}
                       onChange={e => setBatchDetails(batch, detail?.programId || '', Number(e.target.value))}
-                      className="w-28 bg-[#0d1225] border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand"
+                      className="w-28 bg-slate-950 border border-white/[0.08] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand"
                     >
                       {[1,2,3,4,5,6,7,8].map(s => <option key={s} value={s}>Sem {s}</option>)}
                     </select>

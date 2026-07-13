@@ -219,7 +219,7 @@ export function Step2Batches() {
               rows={8}
               value={bulkInput}
               onChange={(e) => setBulkInput(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl bg-[#0b1230] border border-white/10 text-slate-200 text-sm transition-all duration-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand"
+              className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-white/10 text-slate-200 text-sm transition-all duration-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand"
               placeholder="CSE-1A&#10;CSE-1B, 55&#10;ECE-1A, 45&#10;ME-1A"
             />
           </FormField>

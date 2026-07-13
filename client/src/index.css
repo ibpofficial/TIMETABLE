@@ -341,6 +341,25 @@
   background-color: rgba(15, 23, 42, 0.08) !important;
 }
 
+/* Base Input, Select, and Textarea styling for Dark Theme (default) */
+input[type="text"],
+input[type="number"],
+input[type="time"],
+input[type="search"],
+select,
+textarea {
+  background-color: var(--slate-950) !important;
+  color: var(--slate-200) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--slate-500) !important;
+}
+
+/* Light Mode Overrides for inputs and select are handled by the :root[data-theme="light"] styles above */
+
 * {
   box-sizing: border-box;
   margin: 0;

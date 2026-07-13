@@ -167,19 +167,26 @@ export function Header() {
     <>
       <header className="sticky top-0 z-50 flex items-center justify-between px-4 sm:px-6 py-3.5 border-b border-white/[0.07] backdrop-blur-xl bg-[rgba(5,8,20,0.85)] animate-slide-down no-print">
         {/* Brand */}
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center text-white font-black text-sm shadow-lg hover:rotate-12 transition-transform duration-300 cursor-default">
-            IBP
+        <div className="flex items-center gap-3 select-none">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-brand via-brand/80 to-brand-light flex items-center justify-center text-white shadow-xl shadow-brand/10 hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer relative overflow-hidden group">
+            {/* Grid overlay */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/10 to-transparent opacity-50" />
+            <svg className="w-5.5 h-5.5 text-white filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.15)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="5" />
+              <path d="M21 9H3" />
+              <path d="M21 15H3" />
+              <path d="M12 3v18" />
+            </svg>
+            <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-brand-light rounded-full border-2 border-[rgb(5,8,20)] flex items-center justify-center">
+              <span className="w-1.5 h-1.5 bg-brand rounded-full animate-ping" />
+            </div>
           </div>
           <div className="hidden sm:block">
-            <h1 className="text-lg font-bold bg-gradient-to-r from-brand to-brand-light bg-clip-text text-transparent leading-none">
+            <h1 className="text-xl font-black bg-gradient-to-r from-brand via-brand-2 to-white bg-clip-text text-transparent tracking-tight leading-none">
               IBP Timetable Generator
             </h1>
-            <p className="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
-              Smart constraint-aware scheduling
-              <span className="flex items-center gap-1 bg-orange-500/10 text-orange-400 border border-orange-500/20 px-1.5 py-0.5 rounded-full text-[9px] font-bold">
-                <Cloud size={8} /> Firebase
-              </span>
+            <p className="text-[10px] font-bold text-slate-500 mt-1.5 uppercase tracking-widest flex items-center gap-1.5">
+              Smart Constraint-Aware Scheduler
             </p>
           </div>
         </div>
