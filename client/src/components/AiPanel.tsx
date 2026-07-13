@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   Sparkles, Send, Minimize2, Maximize2, Loader2,
-  Zap, Users, Building, AlertTriangle, Bot
+  Zap, Users, Building, AlertTriangle, Bot, X
 } from 'lucide-react';
 import { useTimetableStore } from '../store/useTimetableStore';
 import { fetchAiTip, fetchAiAgent } from '../api/client';
@@ -86,6 +86,21 @@ export function AiPanel() {
   const [sessionCalls, setSessionCalls] = useState(0);
   const MAX_CALLS = 60;
 
+  // Abort controllers for stopping responses
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const coachAbortControllerRef = useRef<AbortController | null>(null);
+
+  // Thinking phases placeholders
+  const [thinkingText, setThinkingText] = useState('Analyzing campus configurations...');
+  const thinkingTexts = [
+    'Scanning classroom capacity constraints...',
+    'Checking faculty availability profiles...',
+    'Analyzing campus slot configurations...',
+    'Running conflict resolution metrics...',
+    'Reviewing department program guidelines...',
+    'Drafting recommended adjustments...'
+  ];
+
   // Coach state
   const [tip, setTip] = useState('');
   const [tipLoading, setTipLoading] = useState(false);
@@ -100,6 +115,26 @@ export function AiPanel() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
+
+  // Clean up active queries on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+      if (coachAbortControllerRef.current) coachAbortControllerRef.current.abort();
+    };
+  }, []);
+
+  // Cycle thinking phrases when loading is active
+  useEffect(() => {
+    if (!loading) return;
+    setThinkingText('Analyzing campus configurations...');
+    let idx = 0;
+    const interval = setInterval(() => {
+      idx = (idx + 1) % thinkingTexts.length;
+      setThinkingText(thinkingTexts[idx]);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   // Build store state snapshot to send to agent
   const buildStoreSnapshot = () => ({
@@ -133,6 +168,12 @@ export function AiPanel() {
       return;
     }
 
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setInput('');
     const userMsg: ChatMessage = { role: 'user', content: userText, timestamp: new Date() };
     setMessages(prev => [...prev, userMsg]);
@@ -146,7 +187,7 @@ export function AiPanel() {
         content: m.content,
       }));
 
-      const { reply, toolsUsed } = await fetchAiAgent(history, buildStoreSnapshot());
+      const { reply, toolsUsed } = await fetchAiAgent(history, buildStoreSnapshot(), controller.signal);
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: reply,
@@ -154,19 +195,37 @@ export function AiPanel() {
         timestamp: new Date(),
       }]);
     } catch (err: any) {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: `❌ **Error**: ${err.message || 'Failed to reach the AI agent. Ensure the backend is running.'}`,
-        timestamp: new Date(),
-      }]);
+      if (err.name === 'AbortError') {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: '⏹️ *Response stopped by user.*',
+          timestamp: new Date(),
+        }]);
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `❌ **Error**: ${err.message || 'Failed to reach the AI agent. Ensure the backend is running.'}`,
+          timestamp: new Date(),
+        }]);
+      }
     } finally {
       setLoading(false);
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
     }
   };
 
   const loadCoachTip = async () => {
     if (tipLoading) return;
     setTipLoading(true);
+
+    if (coachAbortControllerRef.current) {
+      coachAbortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    coachAbortControllerRef.current = controller;
+
     try {
       const context = {
         days: store.days, startTime: store.startTime, endTime: store.endTime,
@@ -175,14 +234,21 @@ export function AiPanel() {
         batchesCount: store.batches.length, facultiesCount: store.faculties.length,
         subjectsCount: store.subjects.length, departmentsCount: store.departments.length,
       };
-      const res = await fetchAiTip(`step_${currentStep}`, {}, context);
+      const res = await fetchAiTip(`step_${currentStep}`, {}, context, controller.signal);
       setTip(res.reply);
       setTipLoaded(true);
     } catch (err: any) {
-      setTip(`⚠️ Could not load tip: ${err.message}`);
-      setTipLoaded(true);
+      if (err.name === 'AbortError') {
+        // Ignored
+      } else {
+        setTip(`⚠️ Could not load tip: ${err.message}`);
+        setTipLoaded(true);
+      }
     } finally {
       setTipLoading(false);
+      if (coachAbortControllerRef.current === controller) {
+        coachAbortControllerRef.current = null;
+      }
     }
   };
 
@@ -190,7 +256,7 @@ export function AiPanel() {
   if (isCollapsed) {
     return (
       <div className="no-print w-full cursor-pointer" onClick={() => setIsCollapsed(false)}>
-        <Card className="border-[#28305a]/60 bg-gradient-to-r from-[#0e1430] to-[#0a0f24] flex flex-row items-center justify-between px-4 py-2.5 w-full hover:border-brand/30 transition-all">
+        <Card className="border-[#28305a]/60 bg-gradient-to-r from-[#0e1430] to-[#0a0f24] flex flex-row items-center justify-between px-4 py-2.5 w-full hover:border-brand/35 hover:shadow-lg transition-all duration-300 rounded-2xl">
           <div className="flex items-center gap-2.5">
             <Bot size={14} className="text-brand animate-pulse" />
             <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">AI Scheduling Agent</span>
@@ -198,7 +264,7 @@ export function AiPanel() {
               {sessionCalls}/{MAX_CALLS} queries
             </span>
           </div>
-          <button className="text-[10px] font-bold text-brand hover:text-brand-light flex items-center gap-1">
+          <button className="text-[10px] font-bold text-brand hover:text-brand-light flex items-center gap-1 cursor-pointer select-none">
             Expand <Maximize2 size={10} />
           </button>
         </Card>
@@ -208,15 +274,15 @@ export function AiPanel() {
 
   // ── Expanded state ───────────────────────────────────────────────────────
   return (
-    <Card className="border-[#28305a]/60 bg-gradient-to-br from-[#0e1430] to-[#0a0f24] relative overflow-hidden flex flex-col w-full no-print min-h-[420px]">
+    <Card className="border-white/10 bg-slate-950/40 backdrop-blur-xl relative overflow-hidden flex flex-col w-full no-print min-h-[420px] rounded-3xl shadow-2xl transition-all duration-300">
       {/* Glow */}
       <div className="absolute top-0 right-0 w-48 h-48 bg-brand/5 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3 shrink-0">
+      <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand to-brand-light flex items-center justify-center shadow-md">
-            <Bot size={13} className="text-white" />
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center shadow-lg shadow-brand/10">
+            <Bot size={14} className="text-white" />
           </div>
           <div>
             <p className="text-xs font-black text-slate-200 uppercase tracking-widest">AI Scheduling Agent</p>
@@ -224,22 +290,22 @@ export function AiPanel() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`text-[10px] px-2 py-1 rounded-full font-bold border ${sessionCalls >= MAX_CALLS ? 'bg-red-500/10 text-red-400 border-red-500/20' : sessionCalls > 40 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-brand/10 text-brand border-brand/20'}`}>
+          <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold border ${sessionCalls >= MAX_CALLS ? 'bg-red-500/10 text-red-400 border-red-500/20' : sessionCalls > 40 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-brand/10 text-brand border-brand/20'}`}>
             {sessionCalls}/{MAX_CALLS} queries
           </span>
           {/* Tabs */}
-          <div className="flex bg-white/[0.04] rounded-lg p-0.5">
+          <div className="flex bg-white/[0.03] border border-white/[0.06] rounded-xl p-0.5">
             {(['chat', 'coach'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-3 py-1 rounded-md text-[11px] font-bold capitalize transition-all ${activeTab === tab ? 'bg-brand/20 text-brand' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`px-3 py-1.5 rounded-lg text-[11px] font-bold capitalize transition-all select-none cursor-pointer ${activeTab === tab ? 'bg-brand/20 text-brand' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 {tab === 'chat' ? '💬 Chat' : '🎓 Coach'}
               </button>
             ))}
           </div>
-          <button onClick={() => setIsCollapsed(true)} className="p-1.5 rounded-lg hover:bg-white/[0.06] text-slate-500 hover:text-slate-300 transition-colors" title="Collapse">
+          <button onClick={() => setIsCollapsed(true)} className="p-1.5 rounded-xl hover:bg-white/[0.06] text-slate-500 hover:text-slate-300 transition-all cursor-pointer" title="Collapse">
             <Minimize2 size={14} />
           </button>
         </div>
@@ -249,20 +315,20 @@ export function AiPanel() {
       {activeTab === 'chat' && (
         <>
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-[240px] max-h-[340px]">
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 min-h-[240px] max-h-[340px]">
             {messages.map((msg, i) => (
-              <div key={i} className={`flex gap-2.5 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs shrink-0 ${msg.role === 'user' ? 'bg-brand/20 text-brand font-black' : 'bg-white/[0.06] text-slate-400'}`}>
-                  {msg.role === 'user' ? 'U' : <Bot size={12} />}
+              <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs shrink-0 font-bold ${msg.role === 'user' ? 'bg-brand/20 text-brand' : 'bg-white/[0.06] text-slate-400'}`}>
+                  {msg.role === 'user' ? 'U' : <Bot size={13} />}
                 </div>
                 <div className={`max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                  <div className={`rounded-2xl px-3.5 py-2.5 ${msg.role === 'user' ? 'bg-brand/15 border border-brand/20 rounded-tr-sm' : 'bg-white/[0.04] border border-white/[0.06] rounded-tl-sm'}`}>
+                  <div className={`rounded-2xl px-4 py-3 ${msg.role === 'user' ? 'bg-gradient-to-r from-brand/20 to-brand-light/10 border border-brand/35 rounded-tr-sm shadow-md shadow-brand/5' : 'bg-white/[0.03] border border-white/[0.08] rounded-tl-sm shadow-inner'}`}>
                     <RenderMarkdown text={msg.content} />
                   </div>
                   {msg.toolsUsed && msg.toolsUsed.length > 0 && (
-                    <div className="flex gap-1 flex-wrap">
+                    <div className="flex gap-1 flex-wrap mt-0.5">
                       {msg.toolsUsed.map((t, j) => (
-                        <span key={j} className="text-[9px] font-mono bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded-full">
+                        <span key={j} className="text-[9px] font-mono bg-green-500/10 text-green-400 border border-green-500/25 px-1.5 py-0.5 rounded-full">
                           🔧 {t}
                         </span>
                       ))}
@@ -272,13 +338,23 @@ export function AiPanel() {
               </div>
             ))}
             {loading && (
-              <div className="flex gap-2.5">
-                <div className="w-7 h-7 rounded-xl bg-white/[0.06] flex items-center justify-center">
-                  <Bot size={12} className="text-slate-400" />
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-xl bg-white/[0.06] flex items-center justify-center">
+                  <Bot size={13} className="text-slate-400 animate-pulse" />
                 </div>
-                <div className="bg-white/[0.04] border border-white/[0.06] rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-2">
-                  <Loader2 size={13} className="animate-spin text-brand" />
-                  <span className="text-xs text-slate-400 italic">Querying live data…</span>
+                <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl rounded-tl-sm px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <Loader2 size={13} className="animate-spin text-brand-light" />
+                    <span className="text-xs text-slate-400 italic font-mono">{thinkingText}</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (abortControllerRef.current) abortControllerRef.current.abort();
+                    }}
+                    className="text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/25 px-2.5 py-1 rounded-lg flex items-center gap-1.5 font-bold transition-all cursor-pointer self-start sm:self-center select-none"
+                  >
+                    <X size={11} /> Stop generating
+                  </button>
                 </div>
               </div>
             )}
@@ -286,46 +362,48 @@ export function AiPanel() {
           </div>
 
           {/* Quick action buttons */}
-          <div className="px-4 pb-2 flex flex-wrap gap-1.5">
+          <div className="px-5 pb-3 pt-1 flex flex-wrap gap-2">
             {QUICK_ACTIONS.map((qa, i) => (
               <button
                 key={i}
                 onClick={() => sendMessage(qa.msg)}
                 disabled={loading || sessionCalls >= MAX_CALLS}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.07] text-[11px] text-slate-400 hover:text-slate-200 hover:bg-white/[0.07] hover:border-brand/20 transition-all; disabled:opacity-40 disabled:cursor-not-allowed"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.02] border border-white/[0.05] text-[11px] text-slate-400 hover:text-slate-100 hover:bg-brand/10 hover:border-brand/35 transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer select-none"
               >
-                {qa.icon}
-                {qa.label}
+                <span className="text-brand">{qa.icon}</span>
+                <span>{qa.label}</span>
               </button>
             ))}
           </div>
 
-          {/* Input */}
-          <div className="px-4 pb-4 pt-1 flex gap-2 items-center border-t border-white/[0.06] shrink-0">
-            <input
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-              placeholder={sessionCalls >= MAX_CALLS ? 'Session limit reached.' : 'Ask about faculty loads, room conflicts, scheduling failures…'}
-              disabled={loading || sessionCalls >= MAX_CALLS}
-              className="flex-1 bg-white/[0.04] border border-white/[0.07] rounded-xl px-3.5 py-2.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-brand/40 focus:border-brand/30 transition-all disabled:opacity-50"
-            />
-            <button
-              onClick={() => sendMessage(input)}
-              disabled={!input.trim() || loading || sessionCalls >= MAX_CALLS}
-              className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity shadow-md"
-              title="Send"
-            >
-              {loading ? <Loader2 size={15} className="animate-spin text-white" /> : <Send size={15} className="text-white" />}
-            </button>
+          {/* Input pill */}
+          <div className="px-5 pb-5 pt-3 flex gap-2 items-center border-t border-white/[0.06] bg-[#0b0f24]/80 backdrop-blur-md shrink-0">
+            <div className="relative flex-1 flex items-center">
+              <input
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
+                placeholder={sessionCalls >= MAX_CALLS ? 'Session limit reached.' : 'Ask about faculty loads, room conflicts, scheduling failures…'}
+                disabled={loading || sessionCalls >= MAX_CALLS}
+                className="w-full bg-[#0a0f28] border border-white/10 hover:border-white/20 focus:border-brand rounded-2xl pl-4 pr-12 py-3.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand/20 transition-all disabled:opacity-50"
+              />
+              <button
+                onClick={() => sendMessage(input)}
+                disabled={!input.trim() || loading || sessionCalls >= MAX_CALLS}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-xl bg-gradient-to-br from-brand to-brand-light flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:scale-105 active:scale-95 transition-all shadow-md cursor-pointer select-none"
+                title="Send"
+              >
+                {loading ? <Loader2 size={14} className="animate-spin text-white" /> : <Send size={14} className="text-white" />}
+              </button>
+            </div>
           </div>
         </>
       )}
 
       {/* ── Coach Tab ─────────────────────────────────────────────────── */}
       {activeTab === 'coach' && (
-        <div className="flex-1 flex flex-col gap-3 p-4">
+        <div className="flex-1 flex flex-col gap-4 p-5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-bold text-slate-200">Step {currentStep} Coach Instructions</p>
@@ -334,7 +412,7 @@ export function AiPanel() {
             <button
               onClick={loadCoachTip}
               disabled={tipLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand/10 border border-brand/20 text-xs font-bold text-brand hover:bg-brand/20 transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand/10 border border-brand/20 text-xs font-bold text-brand hover:bg-brand/20 transition-all active:scale-95 disabled:opacity-50 cursor-pointer select-none"
             >
               {tipLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
               {tipLoaded ? 'Refresh Tips' : 'Load AI Coach Tips'}
@@ -342,8 +420,8 @@ export function AiPanel() {
           </div>
 
           {!tipLoaded && !tipLoading && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center">
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center py-6">
+              <div className="w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center shadow-lg shadow-brand/5 animate-bounce">
                 <Sparkles size={20} className="text-brand" />
               </div>
               <div>
@@ -354,14 +432,14 @@ export function AiPanel() {
           )}
 
           {tipLoading && (
-            <div className="flex-1 flex items-center justify-center gap-2 text-slate-400">
-              <Loader2 size={18} className="animate-spin text-brand" />
-              <span className="text-sm">Generating step-specific coach instructions…</span>
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-400 py-6">
+              <Loader2 size={24} className="animate-spin text-brand" />
+              <span className="text-sm italic">Generating step-specific coach instructions…</span>
             </div>
           )}
 
           {tipLoaded && tip && (
-            <div className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 overflow-y-auto">
+            <div className="flex-1 bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 overflow-y-auto max-h-[300px]">
               <RenderMarkdown text={tip} />
             </div>
           )}
@@ -370,4 +448,3 @@ export function AiPanel() {
     </Card>
   );
 }
-

@@ -143,16 +143,17 @@ export function Step3Faculties() {
           description="Add teaching staff above. You can specify availability blocks per faculty."
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {faculties.map((fac) => {
-            const blockedCount = fac.unavail?.length || 0;
+            const blockedCount = (fac.unavail || []).length;
+
             return (
-              <Card key={fac.id} hover className="border-white/[0.08] flex flex-col justify-between h-[180px] p-5 bg-gradient-to-br from-[#131b3e] to-[#0a0f26]">
-                <div className="space-y-3">
+              <Card key={fac.id} hover className="border-white/[0.06] flex flex-col justify-between h-[190px] p-6 bg-gradient-to-br from-panel to-slate-950/20">
+                <div className="space-y-4">
                   {/* Header */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-8 h-8 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center font-black text-brand text-xs shrink-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-brand/10 border border-brand/25 flex items-center justify-center font-black text-brand text-sm shrink-0">
                         {fac.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="font-bold text-slate-200 text-sm truncate" title={fac.name}>
@@ -163,7 +164,7 @@ export function Step3Faculties() {
                     <button
                       id={`btn-remove-fac-${fac.id}`}
                       onClick={() => setDeleteConfirmFacId(fac.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors shrink-0"
+                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors shrink-0 cursor-pointer"
                       title="Remove faculty"
                     >
                       <Trash2 size={14} />
@@ -171,35 +172,35 @@ export function Step3Faculties() {
                   </div>
 
                   {/* Metadata info */}
-                  <div className="space-y-1 text-slate-400">
-                    <div className="text-[11px] flex justify-between">
-                      <span>Weekly slots:</span>
-                      <span className="font-semibold text-slate-300">{fac.maxWeeklySlots}</span>
+                  <div className="space-y-1.5 text-slate-400 text-xs">
+                    <div className="flex justify-between">
+                      <span>Weekly slots limit:</span>
+                      <span className="font-semibold text-slate-300">{fac.maxWeeklySlots} slots</span>
                     </div>
                     {fac.maxDailySlots && (
-                      <div className="text-[11px] flex justify-between">
-                        <span>Max daily:</span>
-                        <span className="font-semibold text-slate-300">{fac.maxDailySlots}</span>
+                      <div className="flex justify-between">
+                        <span>Max daily slots:</span>
+                        <span className="font-semibold text-slate-300">{fac.maxDailySlots} slots</span>
                       </div>
                     )}
-                    <div className="text-[11px] flex justify-between">
+                    <div className="flex justify-between">
                       <span>Monthly leaves:</span>
-                      <span className="font-semibold text-slate-300">{fac.leaves}</span>
+                      <span className="font-semibold text-slate-300">{fac.leaves} day(s)</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Actions bottom */}
-                <div className="flex items-center justify-between pt-3 border-t border-white/[0.04] mt-2">
-                  <span className={`text-[10px] ${blockedCount > 0 ? 'text-amber-400 font-semibold' : 'text-slate-500'}`}>
-                    {blockedCount > 0 ? `${blockedCount} Blocked Window${blockedCount > 1 ? 's' : ''}` : 'Fully Available'}
+                <div className="flex items-center justify-between pt-3.5 border-t border-white/[0.04] mt-2">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${blockedCount > 0 ? 'text-amber-400' : 'text-slate-500'}`}>
+                    {blockedCount > 0 ? `${blockedCount} Blocked` : 'Fully Available'}
                   </span>
                   
                   <button
                     onClick={() => setUnavailModalFacId(fac.id)}
-                    className="text-[10px] text-brand hover:text-brand-light font-bold hover:underline transition-colors flex items-center gap-1 cursor-pointer"
+                    className="text-[11px] text-brand hover:text-brand-light font-bold hover:underline transition-colors flex items-center gap-1 cursor-pointer"
                   >
-                    Set Available
+                    Set Availability
                   </button>
                 </div>
               </Card>

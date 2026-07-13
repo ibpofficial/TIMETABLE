@@ -145,13 +145,14 @@ export async function cancelJob(jobId: string): Promise<{ message: string }> {
 
 // ── AI Gateway Proxy Calls ───────────────────────────────────────────────────
 
-export async function fetchAiTip(eventName: string, payload: unknown, context: unknown): Promise<{ reply: string }> {
+export async function fetchAiTip(eventName: string, payload: unknown, context: unknown, signal?: AbortSignal): Promise<{ reply: string }> {
   const response = await fetch('/api/ai/tip', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ eventName, payload, context }),
+    signal,
   });
 
   if (!response.ok) {
@@ -162,13 +163,14 @@ export async function fetchAiTip(eventName: string, payload: unknown, context: u
   return response.json();
 }
 
-export async function fetchAiSuggestFix(diagnostics: unknown[], context: unknown): Promise<{ suggestions: string }> {
+export async function fetchAiSuggestFix(diagnostics: unknown[], context: unknown, signal?: AbortSignal): Promise<{ suggestions: string }> {
   const response = await fetch('/api/ai/suggest-fix', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ diagnostics, context }),
+    signal,
   });
 
   if (!response.ok) {
@@ -181,7 +183,8 @@ export async function fetchAiSuggestFix(diagnostics: unknown[], context: unknown
 
 export async function fetchAiAgent(
   messages: Array<{ role: string; content: string }>,
-  storeState: unknown
+  storeState: unknown,
+  signal?: AbortSignal
 ): Promise<{ reply: string; toolsUsed: string[] }> {
   const response = await fetch('/api/ai/agent', {
     method: 'POST',
@@ -189,6 +192,7 @@ export async function fetchAiAgent(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ messages, storeState }),
+    signal,
   });
 
   if (!response.ok) {

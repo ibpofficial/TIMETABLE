@@ -20,6 +20,325 @@
   --radius: 12px;
   --gradient: linear-gradient(135deg, #5b8cff, #7cf4ff);
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Tailwind slate palette defaults for dark theme */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+}
+
+/* ==========================================================================
+   Light Theme Config & Color Overrides (Premium Glassmorphism Style)
+   ========================================================================== */
+:root[data-theme="light"] {
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --card: #ffffff;
+  --chip: #e2e8f0;
+  --text: #0f172a;
+  --muted: #475569;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  
+  /* Inverted slate colors for Light Theme to keep high contrast text */
+  --slate-50: #0f172a;
+  --slate-100: #0f172a;
+  --slate-200: #1e293b;
+  --slate-300: #334155;
+  --slate-400: #475569;
+  --slate-500: #475569;
+  --slate-600: #64748b;
+  --slate-700: #cbd5e1;
+  --slate-800: #e2e8f0;
+  --slate-900: #f1f5f9;
+  --slate-950: #ffffff;
+}
+
+/* Specific background and border overrides for Light Mode */
+:root[data-theme="light"] body {
+  background: 
+    radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.06) 0%, transparent 50%),
+    radial-gradient(circle at 100% 0%, rgba(6, 182, 212, 0.04) 0%, transparent 50%),
+    #fafafa;
+  color: var(--text);
+}
+
+/* Glassmorphic Panel & Card Override in Light Mode - Bright White style */
+:root[data-theme="light"] .bg-panel,
+:root[data-theme="light"] .bg-panel\/95,
+:root[data-theme="light"] .bg-panel\/40,
+:root[data-theme="light"] .bg-panel\/50,
+:root[data-theme="light"] .bg-card,
+:root[data-theme="light"] .bg-slate-950\/40,
+:root[data-theme="light"] .bg-slate-950\/45,
+:root[data-theme="light"] .bg-black\/20,
+:root[data-theme="light"] card {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 10px 15px -3px rgba(0, 0, 0, 0.03) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Override Header background */
+:root[data-theme="light"] header {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  border-color: rgba(226, 232, 240, 0.8) !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+/* Input Fields & Textareas */
+:root[data-theme="light"] .bg-\[\#0b1230\],
+:root[data-theme="light"] .bg-\[\#0a0f28\],
+:root[data-theme="light"] .bg-\[\#0b0f24\]\/80,
+:root[data-theme="light"] .bg-\[\#121832\],
+:root[data-theme="light"] .bg-slate-950\/45 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] input,
+:root[data-theme="light"] select,
+:root[data-theme="light"] textarea {
+  border-color: #cbd5e1 !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] input:focus,
+:root[data-theme="light"] select:focus,
+:root[data-theme="light"] textarea:focus {
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 3px rgba(91, 140, 255, 0.15) !important;
+}
+
+/* Transformed white opacities in Light Mode for soft containers */
+:root[data-theme="light"] .bg-white\/\[0\.01\],
+:root[data-theme="light"] .bg-white\/\[0\.02\],
+:root[data-theme="light"] .bg-white\/\[0\.03\],
+:root[data-theme="light"] .bg-white\/\[0\.04\],
+:root[data-theme="light"] .bg-white\/\[0\.06\],
+:root[data-theme="light"] .bg-white\/5 {
+  background-color: rgba(99, 102, 241, 0.02) !important;
+}
+
+:root[data-theme="light"] .bg-white\/\[0\.08\] {
+  background-color: rgba(99, 102, 241, 0.04) !important;
+}
+
+:root[data-theme="light"] .border-white\/10,
+:root[data-theme="light"] .border-white\/5,
+:root[data-theme="light"] .border-white\/\[0\.05\],
+:root[data-theme="light"] .border-white\/\[0\.06\],
+:root[data-theme="light"] .border-white\/\[0\.07\],
+:root[data-theme="light"] .border-white\/\[0\.08\] {
+  border-color: rgba(99, 102, 241, 0.08) !important;
+}
+
+:root[data-theme="light"] .border-white\/20,
+:root[data-theme="light"] .border-white\/15 {
+  border-color: rgba(99, 102, 241, 0.15) !important;
+}
+
+:root[data-theme="light"] .divide-white\/\[0\.04\],
+:root[data-theme="light"] .divide-white\/5 {
+  border-color: rgba(99, 102, 241, 0.06) !important;
+}
+
+/* Gradient and Card layout updates */
+:root[data-theme="light"] .bg-gradient-to-br.from-\[\#131b3e\].to-\[\#0a0f26\],
+:root[data-theme="light"] .bg-gradient-to-br.from-\[\#0e1430\].to-\[\#0a0f24\],
+:root[data-theme="light"] .bg-gradient-to-br.from-panel.to-slate-950\/20 {
+  background-image: linear-gradient(to bottom right, #ffffff, #f8fafc) !important;
+  border-color: rgba(226, 232, 240, 0.8) !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.03), 0 8px 10px -6px rgba(15, 23, 42, 0.03) !important;
+}
+
+/* Timetable Results Grid Overrides */
+:root[data-theme="light"] td.bg-\[\#182046\]\/50 {
+  background-color: #f1f5f9 !important; /* soft background for assigned slots */
+  color: #0f172a !important;
+}
+:root[data-theme="light"] td.bg-\[\#182046\]\/50:hover {
+  background-color: #e2e8f0 !important;
+}
+:root[data-theme="light"] td.bg-\[\#0d122c\],
+:root[data-theme="light"] tr.bg-\[\#0b1230\] th,
+:root[data-theme="light"] tr.bg-\[\#0b1230\] {
+  background-color: #f8fafc !important;
+  color: #0f172a !important;
+}
+:root[data-theme="light"] .bg-slate-800\/40 {
+  background-color: #cbd5e1 !important; /* clean light slate for breaks */
+  color: #334155 !important;
+}
+
+/* Sidebar Nav Item Overrides for Light Mode */
+:root[data-theme="light"] aside nav ol li {
+  color: var(--text) !important;
+}
+:root[data-theme="light"] aside nav ol li.group {
+  background-color: var(--panel) !important;
+  border-color: rgba(226, 232, 240, 0.8) !important;
+  color: var(--text) !important;
+}
+:root[data-theme="light"] aside nav ol li.group:hover {
+  background-color: rgba(99, 102, 241, 0.04) !important;
+  color: var(--brand) !important;
+}
+:root[data-theme="light"] aside nav ol li.group[aria-selected="true"] {
+  background-image: linear-gradient(to right, rgba(99, 102, 241, 0.08), rgba(6, 182, 212, 0.04)) !important;
+  border-color: rgba(99, 102, 241, 0.25) !important;
+  color: var(--brand) !important;
+}
+:root[data-theme="light"] aside nav ol li.group .text-slate-600 {
+  color: #94a3b8 !important;
+}
+:root[data-theme="light"] aside nav ol li.group:hover .text-slate-600 {
+  color: var(--brand) !important;
+}
+
+/* Safeguard naked text-white classes from turning invisible */
+:root[data-theme="light"] .text-white:not(button *, .bg-gradient-to-r *, .bg-brand *, .bg-green-500 *, .bg-red-500 *, .bg-emerald-500 *, .bg-gradient-to-br *) {
+  color: #0f172a !important;
+}
+
+/* Primary Button Background & Text contrast in Light Mode */
+:root[data-theme="light"] button.bg-gradient-to-r.from-brand.to-brand-light,
+:root[data-theme="light"] button.bg-gradient-to-br.from-brand.to-brand-light,
+:root[data-theme="light"] .bg-brand {
+  background-image: linear-gradient(135deg, #2563eb, #1d4ed8) !important; /* Royal Blue */
+  color: #ffffff !important;
+}
+
+/* Gradient Text/Headers contrast in Light Mode */
+:root[data-theme="light"] .bg-clip-text.bg-gradient-to-r.from-brand.to-brand-light,
+:root[data-theme="light"] .bg-clip-text.bg-gradient-to-br.from-brand.to-brand-light {
+  background-image: linear-gradient(to right, #1e3a8a, #1d4ed8) !important; /* Deep Dark Blue to Royal Blue */
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Color overrides for status blocks and alerts */
+:root[data-theme="light"] .text-brand-light {
+  color: #1d4ed8 !important; /* Crisp brand color instead of bright cyan */
+}
+:root[data-theme="light"] .text-green-400,
+:root[data-theme="light"] .text-green-300,
+:root[data-theme="light"] .text-green-200 {
+  color: #166534 !important;
+}
+:root[data-theme="light"] .text-amber-400,
+:root[data-theme="light"] .text-amber-300,
+:root[data-theme="light"] .text-amber-200 {
+  color: #9a3412 !important;
+}
+:root[data-theme="light"] .text-red-400,
+:root[data-theme="light"] .text-red-300,
+:root[data-theme="light"] .text-red-200 {
+  color: #991b1b !important;
+}
+:root[data-theme="light"] .bg-green-500\/10 {
+  background-color: #f0fdf4 !important;
+}
+:root[data-theme="light"] .bg-amber-500\/10,
+:root[data-theme="light"] .bg-amber-500\/\[0\.02\] {
+  background-color: #fffbeb !important;
+}
+:root[data-theme="light"] .bg-red-500\/10,
+:root[data-theme="light"] .bg-red-500\/\[0\.02\] {
+  background-color: #fef2f2 !important;
+}
+
+/* Colored Chip badges styling in Light Mode */
+:root[data-theme="light"] .bg-blue-500\/10,
+:root[data-theme="light"] .bg-blue-500\/20 {
+  background-color: #eff6ff !important;
+  color: #1e40af !important;
+  border-color: #bfdbfe !important;
+}
+:root[data-theme="light"] .text-blue-300 {
+  color: #1d4ed8 !important;
+}
+
+:root[data-theme="light"] .bg-green-500\/20 {
+  background-color: #f0fdf4 !important;
+  color: #166534 !important;
+  border-color: #bbf7d0 !important;
+}
+
+:root[data-theme="light"] .bg-amber-500\/20 {
+  background-color: #fffbeb !important;
+  color: #9a3412 !important;
+  border-color: #fde68a !important;
+}
+
+:root[data-theme="light"] .bg-red-500\/20 {
+  background-color: #fef2f2 !important;
+  color: #991b1b !important;
+  border-color: #fecaca !important;
+}
+
+:root[data-theme="light"] .bg-purple-500\/10,
+:root[data-theme="light"] .bg-purple-500\/20 {
+  background-color: #faf5ff !important;
+  color: #6b21a8 !important;
+  border-color: #e9d5ff !important;
+}
+:root[data-theme="light"] .text-purple-300 {
+  color: #7e22ce !important;
+}
+
+/* Button variants styling */
+:root[data-theme="light"] .text-red-300 {
+  color: #dc2626 !important;
+}
+:root[data-theme="light"] button.bg-gradient-to-b.from-slate-100.to-slate-300 {
+  background-image: linear-gradient(to bottom, #f1f5f9, #e2e8f0) !important;
+  color: #0f172a !important;
+}
+:root[data-theme="light"] button.bg-gradient-to-b.from-slate-100.to-slate-300:hover {
+  background-image: linear-gradient(to bottom, #cbd5e1, #cbd5e1) !important;
+}
+
+/* Dropdown option background fix */
+:root[data-theme="light"] option {
+  background-color: var(--panel) !important;
+  color: var(--text) !important;
+}
+
+/* Placeholder visibility */
+:root[data-theme="light"] input::placeholder,
+:root[data-theme="light"] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Safeguard all slate gray text classes in Light Mode */
+:root[data-theme="light"] .text-slate-200 {
+  color: #1e293b !important; /* Slate-800 */
+}
+:root[data-theme="light"] .text-slate-300 {
+  color: #334155 !important; /* Slate-700 */
+}
+:root[data-theme="light"] .text-slate-400,
+:root[data-theme="light"] .text-slate-500 {
+  color: #475569 !important; /* Slate-600 */
+}
+:root[data-theme="light"] .text-slate-600 {
+  color: #64748b !important; /* Slate-500 */
+}
+:root[data-theme="light"] .stepper-line {
+  background-color: rgba(15, 23, 42, 0.08) !important;
 }
 
 * {

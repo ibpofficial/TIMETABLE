@@ -376,24 +376,24 @@ export function Step4Subjects() {
       {subjects.length === 0 ? (
         <EmptyState icon={<BookOpen size={36} className="text-slate-600" />} title="No subjects yet" description="Add theory or practical subjects. Practicals with session length > 1 are automatically scheduled as contiguous blocks." />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {subjects.map((s) => {
             const fac = faculties.find((f) => f.id === s.facultyId);
             return (
-              <Card key={s.id} hover className="border-white/[0.08] flex flex-col justify-between min-h-[190px] p-5 bg-gradient-to-br from-[#131b3e] to-[#0a0f26] relative group">
+              <Card key={s.id} hover className="border-white/[0.06] flex flex-col justify-between min-h-[210px] p-6 bg-gradient-to-br from-panel to-slate-950/20 relative group">
                 <div>
                   {/* Header */}
-                  <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="min-w-0">
                       <h4 className="font-bold text-slate-200 text-sm truncate" title={s.name}>
                         {s.name}
                       </h4>
-                      <div className="flex flex-wrap gap-1 mt-1">
+                      <div className="flex flex-wrap gap-1 mt-1.5">
                         <Badge variant={s.type === 'theory' ? 'default' : 'warning'}>
                           {s.type === 'theory' ? 'Theory' : 'Practical'}
                         </Badge>
                         {s.batches.length > 1 && (
-                          <Badge variant="success" className="text-[9px] px-1 py-0 flex items-center gap-0.5">
+                          <Badge variant="success" className="text-[9px] px-1.5 py-0.5 flex items-center gap-0.5">
                             <Link2 size={8} /> Elective
                           </Badge>
                         )}
@@ -402,7 +402,7 @@ export function Step4Subjects() {
                     <button
                       id={`btn-remove-subj-${s.id}`}
                       onClick={() => setDeleteConfirmSubjId(s.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors shrink-0"
+                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-slate-500 hover:text-red-400 transition-colors shrink-0 cursor-pointer"
                       title="Remove subject"
                     >
                       <Trash2 size={14} />
@@ -410,7 +410,7 @@ export function Step4Subjects() {
                   </div>
 
                   {/* Metadata info */}
-                  <div className="space-y-1.5 text-slate-400 text-[11px] mt-3">
+                  <div className="space-y-1.5 text-slate-400 text-xs mt-4">
                     <div className="flex justify-between">
                       <span>Batches:</span>
                       <span className="font-semibold text-slate-200 truncate max-w-[130px]" title={s.batches.join(', ')}>
@@ -433,29 +433,29 @@ export function Step4Subjects() {
                 </div>
 
                 {/* Constraint indicators */}
-                <div className="mt-4 pt-3.5 border-t border-white/[0.04] flex flex-wrap gap-1.5">
+                <div className="mt-4 pt-3.5 border-t border-white/[0.04] flex flex-wrap gap-1">
                   {s.fixed && (
-                    <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-mono">
+                    <span className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 px-2 py-0.5 rounded-lg font-mono font-semibold">
                       📌 {s.fixedDay} {s.fixedStart}
                     </span>
                   )}
                   {(s.preferredRoomTypes && s.preferredRoomTypes.length > 0) && (
-                    <span className="text-[9px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded-md" title={`Rooms: ${s.preferredRoomTypes.join(', ')}`}>
-                      🏠 {s.preferredRoomTypes.length} types
+                    <span className="text-[9px] bg-blue-500/10 text-blue-300 border border-blue-500/15 px-2 py-0.5 rounded-lg font-semibold" title={`Rooms: ${s.preferredRoomTypes.join(', ')}`}>
+                      🏠 {s.preferredRoomTypes.length} Room(s)
                     </span>
                   )}
                   {(s.requiredEquipment && s.requiredEquipment.length > 0) && (
-                    <span className="text-[9px] bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded-md" title={`Equipment: ${s.requiredEquipment.join(', ')}`}>
-                      ⚙️ {s.requiredEquipment.length} reqs
+                    <span className="text-[9px] bg-purple-500/10 text-purple-300 border border-purple-500/15 px-2 py-0.5 rounded-lg font-semibold" title={`Equipment: ${s.requiredEquipment.join(', ')}`}>
+                      ⚙️ {s.requiredEquipment.length} Tag(s)
                     </span>
                   )}
                   {(s.unavail && s.unavail.length > 0) && (
-                    <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 py-0.5 rounded-md">
-                      🚫 {s.unavail.length} blocked
+                    <span className="text-[9px] bg-red-500/10 text-red-300 border border-red-500/15 px-2 py-0.5 rounded-lg font-semibold">
+                      🚫 {s.unavail.length} Blocked
                     </span>
                   )}
                   {(!s.fixed && (!s.preferredRoomTypes || s.preferredRoomTypes.length === 0) && (!s.requiredEquipment || s.requiredEquipment.length === 0) && (!s.unavail || s.unavail.length === 0)) && (
-                    <span className="text-[9px] text-slate-600 italic">No custom constraints</span>
+                    <span className="text-[10px] text-slate-500 italic font-medium">No custom constraints</span>
                   )}
                 </div>
               </Card>

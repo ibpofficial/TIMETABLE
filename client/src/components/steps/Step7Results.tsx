@@ -543,12 +543,12 @@ export function Step7Results() {
         <div className="overflow-x-auto timetable-grid print:overflow-visible">
           <table className="w-full border-collapse text-left text-xs print:w-full print:border-black">
             <thead>
-              <tr className="bg-[#0b1230] border-b border-white/[0.08] print:border-b-2 print:border-black">
-                <th className="p-3.5 font-bold text-slate-300 border-r border-white/[0.08] w-20 text-center uppercase tracking-wider print:text-black print:border-black">
+              <tr className="bg-panel border-b border-white/10 print:border-b-2 print:border-black">
+                <th className="p-4 font-bold text-slate-300 border-r border-white/[0.08] w-20 text-center uppercase tracking-wider print:text-black print:border-black">
                   Day
                 </th>
                 {uniqueTimes.map((time, idx) => (
-                  <th key={idx} className="p-3.5 font-bold text-slate-300 text-center border-r border-white/[0.08] min-w-[120px] print:text-black print:border-black">
+                  <th key={idx} className="p-4 font-bold text-slate-300 text-center border-r border-white/[0.08] min-w-[125px] print:text-black print:border-black">
                     <span className="block font-semibold">{time.start} – {time.end}</span>
                   </th>
                 ))}
@@ -559,7 +559,7 @@ export function Step7Results() {
                 return (
                   <tr key={day} className="border-b border-white/[0.04] last:border-b-0 hover:bg-white/[0.01] transition-colors print:border-black">
                     {/* Day label */}
-                    <td className="p-3 bg-[#0d122c] font-black border-r border-white/[0.08] text-slate-300 text-center print:bg-white print:text-black print:border-black">
+                    <td className="p-4 bg-panel/60 font-black border-r border-white/[0.08] text-slate-300 text-center print:bg-white print:text-black print:border-black">
                       {day}
                     </td>
 
@@ -575,7 +575,7 @@ export function Step7Results() {
                         return (
                           <td
                             key={idx}
-                            className="p-2 border-r border-white/[0.06] bg-slate-800/40 text-center font-semibold text-slate-500 italic tracking-wider print:bg-slate-100 print:text-black print:border-black"
+                            className="p-3 border-r border-white/[0.05] bg-slate-800/30 text-center font-bold text-slate-500 italic tracking-widest print:bg-slate-100 print:text-black print:border-black"
                           >
                             <div className="flex items-center justify-center gap-1.5">
                               <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500">Break</span>
@@ -600,7 +600,7 @@ export function Step7Results() {
                               const sessId = e.dataTransfer.getData('text/plain');
                               handleMoveSession(sessId, day, time.start);
                             }}
-                            className="p-3 border-r border-white/[0.06] text-center text-slate-700 font-mono text-[10px] hover:bg-brand/10 transition-colors cursor-pointer print:border-black"
+                            className="p-3 border-r border-white/[0.05] text-center text-slate-700 font-mono text-xs hover:bg-brand/10 hover:text-brand-light transition-all duration-200 cursor-pointer print:border-black"
                           >
                             —
                           </td>
@@ -626,20 +626,20 @@ export function Step7Results() {
                             const sessId = e.dataTransfer.getData('text/plain');
                             handleMoveSession(sessId, day, time.start);
                           }}
-                          className={`p-2.5 border-r border-white/[0.06] transition-all print:border-black
-                            ${isFixed ? '' : 'cursor-grab active:cursor-grabbing hover:bg-slate-700/30'}
+                          className={`p-3 border-r border-white/[0.05] transition-all duration-300 print:border-black
+                            ${isFixed ? '' : 'cursor-grab active:cursor-grabbing hover:bg-[#182046]/70 hover:scale-[1.01] hover:shadow-md'}
                             ${highlighted ? 'search-highlight' : ''}
                             ${isFixed
-                              ? 'bg-emerald-500/10 text-emerald-300 font-semibold border-emerald-500/20'
-                              : 'bg-[#182046]/50'}`}
+                              ? 'bg-emerald-500/10 text-emerald-300 font-bold border-emerald-500/20'
+                              : 'bg-[#182046]/40 border-b border-white/5'}`}
                         >
-                          <div className="text-center space-y-1">
+                          <div className="text-center space-y-1.5">
                             <span className={`block font-bold truncate leading-tight text-slate-200 print:text-black
                               ${isFixed ? 'text-emerald-400' : ''}`}>
                               {a.subject}
                             </span>
                             <div className="flex flex-wrap gap-1 items-center justify-center text-[10px] text-slate-400 print:text-black">
-                              <Badge variant={a.room.startsWith('L') ? 'warning' : 'default'}>
+                              <Badge variant={a.room.startsWith('L') ? 'warning' : 'default'} className="px-1.5 py-0">
                                 {a.room}
                               </Badge>
 

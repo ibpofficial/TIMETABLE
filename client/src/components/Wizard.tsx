@@ -1,6 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTimetableStore, type WizardStep } from '../store/useTimetableStore';
-import { CheckIcon, ChevronRight } from 'lucide-react';
+import { CheckIcon, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Header } from './Header';
 import { Step0Departments } from './steps/Step0Departments';
 import { Step1Institution } from './steps/Step1Institution';
@@ -54,14 +54,34 @@ export function Wizard() {
     }
   };
 
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('stepper-collapsed') === 'true');
+  const toggleCollapse = () => {
+    setCollapsed(prev => {
+      localStorage.setItem('stepper-collapsed', (!prev).toString());
+      return !prev;
+    });
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header />
 
-      <main className="flex-1 max-w-[1400px] mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 print:block print:p-0 print:m-0">
+      <main className={`flex-1 max-w-[1400px] mx-auto w-full px-4 sm:px-6 py-6 grid grid-cols-1 gap-6 print:block print:p-0 print:m-0 transition-all duration-300 ${collapsed ? 'lg:grid-cols-[70px_1fr]' : 'lg:grid-cols-[280px_1fr]'}`}>
         {/* Sidebar — Step Navigator */}
-        <aside className="lg:sticky lg:top-[80px] h-fit no-print">
+        <aside className={`lg:sticky lg:top-[80px] h-fit no-print transition-all duration-300 ${collapsed ? 'lg:w-[70px]' : 'lg:w-[280px]'}`}>
           <nav aria-label="Wizard steps">
+            <div className="flex items-center justify-between mb-3.5 px-2">
+              {!collapsed && <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest animate-fade-in">Schedule Steps</span>}
+              <button
+                onClick={toggleCollapse}
+                className={`p-1.5 rounded-lg hover:bg-white/5 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer border border-transparent hover:border-white/10 flex items-center justify-center
+                  ${collapsed ? 'mx-auto' : 'ml-auto'}`}
+                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+              </button>
+            </div>
+
             <ol
               role="tablist"
               aria-orientation="vertical"
@@ -82,35 +102,44 @@ export function Wizard() {
                     tabIndex={isAccessible ? 0 : -1}
                     onKeyDown={(e) => handleKeyDown(e, idx)}
                     onClick={() => setStep(step.id as WizardStep)}
+                    title={collapsed ? `${idx + 1}. ${step.label}` : undefined}
                     className={`
-                      group relative flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer
-                      border transition-all duration-200 whitespace-nowrap lg:whitespace-normal
+                      group relative flex items-center gap-3.5 px-4 py-3.5 rounded-xl cursor-pointer
+                      border transition-all duration-300 ease-out whitespace-nowrap lg:whitespace-normal
                       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand
+                      ${collapsed ? 'lg:w-11 lg:h-11 lg:rounded-full lg:p-0 lg:mx-auto lg:justify-center' : ''}
                       ${isActive
-                        ? 'bg-gradient-to-r from-[#121a3a] to-[#0c1230] border-[#28305a] text-white shadow-md translate-x-0 lg:translate-x-1 font-bold'
-                        : 'bg-panel/60 border-white/[0.06] text-slate-400 hover:text-white hover:lg:translate-x-1'
+                        ? 'bg-gradient-to-r from-slate-900/60 to-panel border-brand/30 text-white shadow-lg shadow-brand/5 scale-[1.01] translate-x-0 lg:translate-x-1 font-semibold'
+                        : 'bg-panel/40 border-white/[0.04] text-slate-400 hover:text-slate-200 hover:border-white/10 hover:lg:translate-x-1'
                       }
                     `}
                   >
+                    {/* Stepper connected vertical line */}
+                    {idx < STEPS.length - 1 && !collapsed && (
+                      <span
+                        className="stepper-line absolute left-[30px] top-[38px] w-0.5 h-[calc(100%+8px)] -translate-x-1/2 pointer-events-none hidden lg:block z-0 transition-colors duration-300 bg-white/5"
+                      />
+                    )}
+
                     {/* Accent bar */}
                     <span
-                      className={`absolute left-0 top-0 h-full w-1 rounded-l-xl bg-gradient-to-b from-brand to-brand-light transition-opacity duration-200
-                        ${isActive || isDone ? 'opacity-100' : 'opacity-0'}`}
+                      className={`absolute left-0 top-0 h-full w-1 rounded-l-xl bg-gradient-to-b from-brand to-brand-light transition-opacity duration-300
+                        ${(isActive || isDone) && !collapsed ? 'opacity-100' : 'opacity-0'}`}
                     />
 
                     {/* Step number / check */}
                     <span className={`
-                      flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
-                      ${isActive ? 'bg-gradient-to-br from-brand to-brand-light text-white'
-                        : isDone ? 'bg-green-500/20 text-green-400'
-                        : 'bg-white/[0.04] text-slate-600'}
+                      flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-black z-10 transition-all duration-300
+                      ${isActive ? 'bg-gradient-to-br from-brand to-brand-light text-white shadow-md shadow-brand/15 scale-110'
+                        : isDone ? 'bg-green-500/10 text-green-400 border border-green-500/20'
+                        : 'bg-white/[0.03] text-slate-500 border border-white/5 group-hover:text-slate-300'}
                     `}>
-                      {isDone ? <CheckIcon size={13} /> : step.id}
+                      {isDone ? <CheckIcon size={12} strokeWidth={3} /> : step.id}
                     </span>
 
-                    <span className="text-sm font-medium">{step.label}</span>
+                    <span className={`text-xs font-semibold uppercase tracking-wider transition-all duration-300 ${collapsed ? 'lg:opacity-0 lg:w-0 lg:overflow-hidden lg:pointer-events-none' : 'opacity-100'}`}>{step.label}</span>
 
-                    {isActive && <ChevronRight size={14} className="ml-auto text-brand opacity-70 hidden lg:block" />}
+                    {(isActive && !collapsed) && <ChevronRight size={13} className="ml-auto text-brand opacity-80 hidden lg:block animate-pulse" />}
                   </li>
                 );
               })}

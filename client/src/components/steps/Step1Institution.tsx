@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useTimetableStore } from '../../store/useTimetableStore';
-import { Button, Card, FormField, Input, SectionHeader, ConfirmModal } from '../ui';
+import { Button, Card, FormField, Input, SectionHeader, ConfirmModal, Modal } from '../ui';
 import { StepNav } from './StepNav';
 import type { Room } from '../../types';
-import { Trash2, Plus, Building2 } from 'lucide-react';
+import { Trash2, Plus, Building2, Upload } from 'lucide-react';
+import ImportRoomsExcel from '../ImportRoomsExcel';
 import { toast } from 'sonner';
 
 const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -30,6 +31,7 @@ export function Step1Institution() {
   const store = useTimetableStore();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const [allRooms, setAllRooms] = useState<Room[]>(() => [
     ...store.theoryRooms,
@@ -103,6 +105,11 @@ export function Step1Institution() {
     };
     setAllRooms(prev => [...prev, newRoom]);
     toast.success('Added one custom room.');
+  };
+
+  const handleImportRooms = (importedRooms: Room[]) => {
+    setAllRooms(prev => [...prev, ...importedRooms]);
+    toast.success(`Successfully imported ${importedRooms.length} classrooms!`);
   };
 
   const handleUpdateRoom = (id: string, updates: Partial<Room>) => {
@@ -403,13 +410,23 @@ export function Step1Institution() {
                 </span>
                 Classrooms & Lecture Halls
               </h3>
-              <Button
-                variant="ghost"
-                onClick={handleAddManualRoom}
-                className="text-xs py-1.5 px-3 flex items-center gap-1 border border-white/10 hover:border-white/20"
-              >
-                <Plus size={14} /> Add Room Manually
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsImportOpen(true)}
+                  className="text-xs py-1.5 px-3 flex items-center gap-1 border border-white/10 hover:border-white/20"
+                  icon={<Upload size={14} />}
+                >
+                  Import from Excel
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={handleAddManualRoom}
+                  className="text-xs py-1.5 px-3 flex items-center gap-1 border border-white/10 hover:border-white/20"
+                >
+                  <Plus size={14} /> Add Room Manually
+                </Button>
+              </div>
             </div>
 
             {errors.rooms && <p className="text-xs text-red-400 mb-3">{errors.rooms}</p>}
@@ -418,46 +435,46 @@ export function Step1Institution() {
               <div className="flex-1 overflow-x-auto max-h-[600px] pr-1">
                 <table className="w-full border-collapse text-left text-xs">
                   <thead>
-                    <tr className="border-b border-white/5 text-slate-500 font-semibold uppercase tracking-wider">
-                      <th className="py-2.5 px-2">Room Code</th>
-                      <th className="py-2.5 px-2">Type</th>
-                      <th className="py-2.5 px-2">Capacity</th>
-                      <th className="py-2.5 px-2">Equipment Tags</th>
-                      <th className="py-2.5 px-2 text-right">Delete</th>
+                    <tr className="sticky top-0 z-20 bg-panel border-b border-white/10 text-slate-500 font-bold uppercase tracking-wider">
+                      <th className="py-3 px-3">Room Code</th>
+                      <th className="py-3 px-3">Type</th>
+                      <th className="py-3 px-3">Capacity</th>
+                      <th className="py-3 px-3">Equipment Tags</th>
+                      <th className="py-3 px-3 text-right">Delete</th>
                     </tr>
                   </thead>
                   <tbody>
                     {allRooms.map((room) => (
-                      <tr key={room.id} className="border-b border-white/5 hover:bg-white/[0.01] transition-colors">
-                        <td className="py-2 px-1">
+                      <tr key={room.id} className="border-b border-white/[0.04] odd:bg-white/[0.01] hover:bg-white/[0.03] transition-colors">
+                        <td className="py-3 px-3">
                           <input
                             type="text"
                             value={room.name}
                             onChange={(e) => handleUpdateRoom(room.id, { name: e.target.value.trim().toUpperCase() })}
-                            className="bg-[#121832] border border-white/5 focus:border-brand rounded px-2 py-1.5 w-[90px] font-mono text-slate-200"
+                            className="bg-slate-950/30 border border-white/10 hover:border-white/20 focus:border-brand focus:ring-1 focus:ring-brand/40 rounded-lg px-2.5 py-1.5 w-[95px] font-mono text-slate-200 text-xs transition-all focus:outline-none"
                           />
                         </td>
-                        <td className="py-2 px-1">
+                        <td className="py-3 px-3">
                           <select
                             value={room.type}
                             onChange={(e) => handleUpdateRoom(room.id, { type: e.target.value })}
-                            className="bg-[#121832] border border-white/5 focus:border-brand rounded px-1.5 py-1.5 text-slate-300 max-w-[140px]"
+                            className="bg-slate-950/30 border border-white/10 hover:border-white/20 focus:border-brand focus:ring-1 focus:ring-brand/40 rounded-lg px-2 py-1.5 text-slate-200 text-xs transition-all focus:outline-none max-w-[140px]"
                           >
                             {ROOM_TYPES.map(t => (
                               <option key={t.value} value={t.value}>{t.label.split(' (')[0]}</option>
                             ))}
                           </select>
                         </td>
-                        <td className="py-2 px-1">
+                        <td className="py-3 px-3">
                           <input
                             type="number"
                             min="1"
                             value={room.capacity}
                             onChange={(e) => handleUpdateRoom(room.id, { capacity: Number(e.target.value) || 0 })}
-                            className="bg-[#121832] border border-white/5 focus:border-brand rounded px-2 py-1.5 w-[65px] text-slate-200 text-center"
+                            className="bg-slate-950/30 border border-white/10 hover:border-white/20 focus:border-brand focus:ring-1 focus:ring-brand/40 rounded-lg px-2 py-1.5 w-[65px] text-slate-200 text-center text-xs font-semibold transition-all focus:outline-none"
                           />
                         </td>
-                        <td className="py-2 px-1">
+                        <td className="py-3 px-3">
                           <div className="flex flex-wrap gap-1 max-w-[200px]">
                             {EQUIPMENT_OPTIONS.map((opt) => {
                               const active = (room.equipment || []).includes(opt.value);
@@ -465,10 +482,10 @@ export function Step1Institution() {
                                 <button
                                   key={opt.value}
                                   onClick={() => handleToggleEquipment(room.id, opt.value)}
-                                  className={`px-1.5 py-0.5 rounded text-[10px] border transition-all
+                                  className={`px-2 py-1 rounded text-[10px] border transition-all duration-200 cursor-pointer
                                     ${active
-                                      ? 'bg-brand/20 border-brand text-brand-light font-medium'
-                                      : 'bg-white/[0.02] border-white/5 text-slate-500 hover:border-white/15'
+                                      ? 'bg-brand/20 border-brand text-brand-light font-bold'
+                                      : 'bg-white/[0.02] border-white/5 text-slate-400 hover:border-white/15'
                                     }`}
                                   title={`Toggle ${opt.label}`}
                                 >
@@ -478,10 +495,10 @@ export function Step1Institution() {
                             })}
                           </div>
                         </td>
-                        <td className="py-2 px-1 text-right">
+                        <td className="py-3 px-3 text-right">
                           <button
                             onClick={() => handleDeleteRoom(room.id)}
-                            className="p-1.5 text-slate-600 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                            className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors cursor-pointer"
                             title="Delete Room"
                           >
                             <Trash2 size={14} />
@@ -519,6 +536,14 @@ export function Step1Institution() {
         message="Are you sure you want to clear the working days, times, slots, and classroom directory? This cannot be undone."
         confirmLabel="Clear Page"
       />
+
+      <Modal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} title="Import Classrooms from Excel">
+        <ImportRoomsExcel
+          onClose={() => setIsImportOpen(false)}
+          currentRooms={allRooms}
+          onImport={handleImportRooms}
+        />
+      </Modal>
     </div>
   );
 }

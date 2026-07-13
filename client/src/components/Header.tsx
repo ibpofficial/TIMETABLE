@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Download, Upload, RotateCcw, Save, Database, Trash2, Loader2, Cloud } from 'lucide-react';
+import { Download, Upload, RotateCcw, Save, Database, Trash2, Loader2, Cloud, Sun, Moon } from 'lucide-react';
 import { useTimetableStore } from '../store/useTimetableStore';
 import { Button, ConfirmModal } from './ui';
 import {
@@ -12,6 +12,24 @@ export function Header() {
   const store = useTimetableStore();
   const [saving, setSaving] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') {
+      document.documentElement.setAttribute('data-theme', 'light');
+      return 'light';
+    }
+    document.documentElement.setAttribute('data-theme', 'dark');
+    return 'dark';
+  });
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('theme', nextTheme);
+    document.documentElement.setAttribute('data-theme', nextTheme);
+    toast.info(`Switched to ${nextTheme === 'light' ? 'Light' : 'Dark'} Theme`);
+  };
 
   // Cloud loading state
   const [showLoadModal, setShowLoadModal] = useState(false);
@@ -168,6 +186,17 @@ export function Header() {
 
         {/* Actions */}
         <nav className="flex items-center gap-2" aria-label="Configuration actions">
+          <Button
+            id="btn-toggle-theme"
+            variant="ghost"
+            size="sm"
+            icon={theme === 'dark' ? <Sun size={13} className="text-amber-400" /> : <Moon size={13} className="text-indigo-400" />}
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+          >
+            <span className="hidden sm:inline">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          </Button>
+
           <Button
             id="btn-import-config"
             variant="ghost"

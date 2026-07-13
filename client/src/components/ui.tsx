@@ -23,23 +23,23 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const base =
-    'relative inline-flex items-center justify-center gap-2 font-semibold rounded-xl overflow-hidden transition-all duration-200 cursor-pointer select-none';
+    'relative inline-flex items-center justify-center gap-2 font-semibold rounded-xl overflow-hidden transition-all duration-300 ease-out cursor-pointer select-none';
 
   const variants: Record<ButtonVariant, string> = {
     primary:
-      'bg-gradient-to-r from-brand to-brand-light text-white shadow-lg hover:shadow-brand/30 hover:-translate-y-0.5 active:scale-95',
+      'bg-gradient-to-r from-brand to-brand-light text-white shadow-lg shadow-brand/10 hover:shadow-brand/25 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-95',
     secondary:
-      'bg-gradient-to-b from-slate-100 to-slate-300 text-slate-900 hover:-translate-y-0.5 active:scale-95',
+      'bg-gradient-to-b from-slate-100 to-slate-300 text-slate-900 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-95',
     ghost:
-      'border border-white/20 text-slate-200 hover:bg-white/5 hover:-translate-y-0.5 active:scale-95',
+      'border border-white/10 text-slate-200 hover:bg-white/5 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-95',
     danger:
-      'border border-red-500/40 text-red-300 hover:bg-red-500/10 hover:-translate-y-0.5 active:scale-95',
+      'border border-red-500/30 text-red-300 hover:bg-red-500/10 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-95',
   };
 
   const sizes: Record<string, string> = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2.5 text-sm',
-    lg: 'px-6 py-3.5 text-base',
+    sm: 'px-3.5 py-2 text-xs',
+    md: 'px-4.5 py-3 text-sm',
+    lg: 'px-6 py-4 text-base',
   };
 
   return (
@@ -68,15 +68,15 @@ export function Card({ children, className = '', hover = false, glow = false }: 
   return (
     <div
       className={`
-        relative bg-panel border border-white/[0.06] rounded-xl p-5 overflow-hidden
-        ${hover ? 'transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-black/30' : ''}
-        ${glow ? 'ring-1 ring-brand/20' : ''}
+        relative bg-panel/95 backdrop-blur-md border border-white/[0.05] rounded-2xl p-6 overflow-hidden
+        ${hover ? 'transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-2xl hover:shadow-brand/5 hover:border-white/10' : ''}
+        ${glow ? 'ring-1 ring-brand/20 shadow-lg shadow-brand/5' : ''}
         ${className}
       `}
     >
       {/* Subtle gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.03] to-transparent pointer-events-none rounded-xl" />
-      <div className="relative">{children}</div>
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none rounded-2xl" />
+      <div className="relative z-10">{children}</div>
     </div>
   );
 }
@@ -94,18 +94,18 @@ interface FormFieldProps {
 
 export function FormField({ label, htmlFor, error, hint, required, children, className = '' }: FormFieldProps) {
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
+    <div className={`flex flex-col gap-2 ${className}`}>
       <label
         htmlFor={htmlFor}
-        className="text-sm font-medium text-slate-300"
+        className="text-xs font-semibold text-slate-400 uppercase tracking-wider"
       >
         {label}
         {required && <span className="ml-1 text-red-400">*</span>}
       </label>
       {children}
-      {hint && !error && <p className="text-xs text-slate-500">{hint}</p>}
+      {hint && !error && <p className="text-xs text-slate-500 leading-relaxed">{hint}</p>}
       {error && (
-        <p className="text-xs text-red-400 animate-slide-up">{error}</p>
+        <p className="text-xs text-red-400 animate-slide-up leading-relaxed">{error}</p>
       )}
     </div>
   );
@@ -121,11 +121,11 @@ export function Input({ error, className = '', ...rest }: InputProps) {
     <input
       {...rest}
       className={`
-        w-full px-3 py-2.5 rounded-xl
-        bg-[#0b1230] border text-slate-200 text-sm
-        transition-all duration-200 placeholder:text-slate-600
-        focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand
-        ${error ? 'border-red-500/60' : 'border-white/10 hover:border-white/20'}
+        w-full px-4 py-3 rounded-xl
+        bg-slate-950/45 border text-slate-200 text-sm font-medium
+        transition-all duration-300 ease-out placeholder:text-slate-600
+        focus:outline-none focus:ring-2 focus:ring-brand/35 focus:border-brand
+        ${error ? 'border-red-500/50' : 'border-white/5 hover:border-white/15'}
         ${className}
       `}
     />
@@ -142,11 +142,11 @@ export function Select({ error, className = '', children, ...rest }: SelectProps
     <select
       {...rest}
       className={`
-        w-full px-3 py-2.5 rounded-xl
-        bg-[#0b1230] border text-slate-200 text-sm
-        transition-all duration-200
-        focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand
-        ${error ? 'border-red-500/60' : 'border-white/10 hover:border-white/20'}
+        w-full px-4 py-3 rounded-xl
+        bg-slate-950/45 border text-slate-200 text-sm font-medium
+        transition-all duration-300 ease-out
+        focus:outline-none focus:ring-2 focus:ring-brand/35 focus:border-brand
+        ${error ? 'border-red-500/50' : 'border-white/5 hover:border-white/15'}
         ${className}
       `}
     >
@@ -163,21 +163,21 @@ interface ChipProps {
 }
 
 const chipColors = {
-  blue: 'bg-blue-500/10 border-blue-500/20 text-blue-300',
-  green: 'bg-green-500/10 border-green-500/20 text-green-300',
-  amber: 'bg-amber-500/10 border-amber-500/20 text-amber-300',
-  red: 'bg-red-500/10 border-red-500/20 text-red-300',
-  purple: 'bg-purple-500/10 border-purple-500/20 text-purple-300',
+  blue: 'bg-blue-500/10 border-blue-500/20 text-blue-300 hover:bg-blue-500/25',
+  green: 'bg-green-500/10 border-green-500/20 text-green-300 hover:bg-green-500/25',
+  amber: 'bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/25',
+  red: 'bg-red-500/10 border-red-500/20 text-red-300 hover:bg-red-500/25',
+  purple: 'bg-purple-500/10 border-purple-500/20 text-purple-300 hover:bg-purple-500/25',
 };
 
 export function Chip({ label, onRemove, color = 'blue' }: ChipProps) {
   return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-medium animate-pop-in ${chipColors[color]}`}>
+    <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-xs font-semibold animate-pop-in transition-all ${chipColors[color]}`}>
       {label}
       {onRemove && (
         <button
           onClick={onRemove}
-          className="ml-0.5 hover:text-white transition-colors rounded-full"
+          className="ml-0.5 hover:text-white transition-colors rounded-full text-base font-bold leading-none cursor-pointer"
           aria-label={`Remove ${label}`}
         >
           ×
@@ -190,12 +190,12 @@ export function Chip({ label, onRemove, color = 'blue' }: ChipProps) {
 // ── Badge ──────────────────────────────────────────────────────────
 export function Badge({ children, variant = 'default', className = '' }: { children: ReactNode; variant?: 'default' | 'success' | 'warning' | 'error'; className?: string }) {
   const v = {
-    default: 'bg-slate-700/50 text-slate-300',
-    success: 'bg-green-500/10 text-green-400',
-    warning: 'bg-amber-500/10 text-amber-400',
-    error: 'bg-red-500/10 text-red-400',
+    default: 'bg-slate-700/50 text-slate-300 border-white/5',
+    success: 'bg-green-500/10 text-green-400 border-green-500/15',
+    warning: 'bg-amber-500/10 text-amber-400 border-amber-500/15',
+    error: 'bg-red-500/10 text-red-400 border-red-500/15',
   };
-  return <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${v[variant]} ${className}`}>{children}</span>;
+  return <span className={`inline-flex items-center px-2.5 py-1 rounded-lg border text-xs font-semibold ${v[variant]} ${className}`}>{children}</span>;
 }
 
 // ── SectionHeader ──────────────────────────────────────────────────
@@ -209,17 +209,17 @@ export function SectionHeader({
   onClear?: () => void;
 }) {
   return (
-    <div className="mb-6 flex justify-between items-start gap-4">
+    <div className="mb-8 flex justify-between items-start gap-4">
       <div>
-        <h2 className="text-2xl font-bold bg-gradient-to-r from-brand to-brand-light bg-clip-text text-transparent">
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-brand to-brand-light bg-clip-text text-transparent tracking-tight">
           {title}
         </h2>
-        {subtitle && <p className="mt-1 text-sm text-slate-400">{subtitle}</p>}
+        {subtitle && <p className="mt-2 text-sm font-medium text-slate-400 leading-relaxed">{subtitle}</p>}
       </div>
       {onClear && (
         <button
           onClick={onClear}
-          className="px-3 py-1.5 rounded-lg border border-red-500/20 hover:border-red-500/30 text-red-400 hover:bg-red-500/10 transition-colors text-xs font-semibold flex items-center gap-1.5 shrink-0 cursor-pointer select-none"
+          className="px-4 py-2.5 rounded-xl border border-red-500/20 hover:border-red-500/40 text-red-400 hover:bg-red-500/10 hover:scale-[1.02] active:scale-95 transition-all duration-300 ease-out text-xs font-bold flex items-center gap-1.5 shrink-0 cursor-pointer select-none"
           title="Clear all page configuration"
         >
           <Trash2 size={12} />
@@ -238,10 +238,12 @@ export function Skeleton({ className = '' }: { className?: string }) {
 // ── EmptyState ─────────────────────────────────────────────────────
 export function EmptyState({ icon, title, description }: { icon?: ReactNode; title: string; description?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center py-10 text-center gap-3">
-      {icon && <div className="text-4xl text-slate-600">{icon}</div>}
-      <p className="font-semibold text-slate-400">{title}</p>
-      {description && <p className="text-sm text-slate-500 max-w-xs">{description}</p>}
+    <div className="flex flex-col items-center justify-center py-14 px-6 text-center gap-4 bg-white/[0.01] border border-dashed border-white/[0.04] rounded-2xl w-full">
+      {icon && <div className="text-4xl text-slate-500 animate-pulse">{icon}</div>}
+      <div className="space-y-1">
+        <p className="font-bold text-slate-200 text-base">{title}</p>
+        {description && <p className="text-xs text-slate-400 max-w-sm leading-relaxed">{description}</p>}
+      </div>
     </div>
   );
 }
@@ -257,15 +259,15 @@ interface ModalProps {
 export function Modal({ isOpen, onClose, title, children }: ModalProps) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in" style={{ zIndex: 9999 }}>
-      <div className="bg-[#121832] border border-white/10 rounded-2xl w-full max-w-4xl p-6 shadow-2xl relative animate-pop-in flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between border-b border-white/[0.06] pb-3 mb-4 shrink-0">
-          <h3 className="text-lg font-bold text-slate-100 flex items-center gap-2">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in" style={{ zIndex: 9999 }}>
+      <div className="bg-panel border border-white/10 rounded-2xl w-full max-w-4xl p-8 shadow-2xl relative animate-pop-in flex flex-col max-h-[90vh] backdrop-blur-xl">
+        <div className="flex items-center justify-between border-b border-white/[0.06] pb-4 mb-5 shrink-0">
+          <h3 className="text-xl font-bold text-slate-100 flex items-center gap-2">
             {title}
           </h3>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-300 font-bold text-xl px-1.5 transition-colors cursor-pointer select-none"
+            className="modal-close text-slate-400 hover:text-white font-bold text-2xl px-2 py-0.5 rounded-lg hover:bg-white/5 transition-all duration-300 cursor-pointer select-none leading-none"
             aria-label="Close modal"
           >
             ×
@@ -301,9 +303,9 @@ export function ConfirmModal({
 }: ConfirmModalProps) {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
-      <div className="space-y-4">
-        <p className="text-sm text-slate-300 leading-relaxed">{message}</p>
-        <div className="flex justify-end gap-3 pt-3 border-t border-white/[0.06]">
+      <div className="space-y-5">
+        <p className="text-sm text-slate-300 leading-relaxed font-medium">{message}</p>
+        <div className="flex justify-end gap-3 pt-4 border-t border-white/[0.06]">
           <Button variant="ghost" onClick={onClose}>
             {cancelLabel}
           </Button>
