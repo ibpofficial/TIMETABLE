@@ -169,6 +169,25 @@ app.get('/api/configs/:id', async (req, res) => {
   }
 });
 
+// Update configuration
+app.put('/api/configs/:id', async (req, res) => {
+  const configId = req.params.id;
+  const { name, data } = req.body;
+  try {
+    await prisma.savedConfig.update({
+      where: { id: configId },
+      data: {
+        name,
+        data: JSON.stringify(data),
+      },
+    });
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error('Failed to update config:', error);
+    return res.status(500).json({ error: 'Failed to update configuration.' });
+  }
+});
+
 // Delete configuration
 app.delete('/api/configs/:id', async (req, res) => {
   const configId = req.params.id;
@@ -247,6 +266,20 @@ app.get('/api/timetables/:id', async (req, res) => {
   } catch (error) {
     console.error('Failed to get timetable:', error);
     return res.status(500).json({ error: 'Failed to retrieve timetable.' });
+  }
+});
+
+// Delete timetable
+app.delete('/api/timetables/:id', async (req, res) => {
+  const timetableId = req.params.id;
+  try {
+    await prisma.savedTimetable.delete({
+      where: { id: timetableId },
+    });
+    return res.json({ success: true });
+  } catch (error: any) {
+    console.error('Failed to delete timetable:', error);
+    return res.status(500).json({ error: 'Failed to delete timetable.' });
   }
 });
 

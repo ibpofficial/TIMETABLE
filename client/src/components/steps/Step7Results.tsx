@@ -278,14 +278,14 @@ export function Step7Results() {
     toast.success('CSV schedule exported!');
   };
 
-  // ── Cloud Save Timetable (Firebase) ──────────────────────────────
+  // ── Save Timetable to Database ──────────────────────────────────
   const handleCloudSaveTimetable = async () => {
     const name = prompt('Enter a name for this timetable schedule:')?.trim();
     if (!name) return;
     setSaving(true);
     try {
       await fsSaveTimetable(name, store.savedConfigId || 'local', solution, store.sessionId);
-      toast.success(`Saved timetable "${name}" to Firebase! 🔥`);
+      toast.success(`Saved timetable "${name}" to Database! 🔥`);
     } catch (err: any) {
       toast.error('Failed to save timetable: ' + err.message);
     } finally {
@@ -411,14 +411,14 @@ export function Step7Results() {
             >
               Modify
             </Button>
-            <Button
+             <Button
               variant="ghost"
               size="sm"
               icon={<Save size={13} />}
               onClick={handleCloudSaveTimetable}
               loading={saving}
             >
-              Save Cloud
+              Save Schedule
             </Button>
             <Button
               variant="ghost"

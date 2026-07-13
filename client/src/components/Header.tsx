@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Download, Upload, RotateCcw, Save, Database, Trash2, Loader2, Cloud, Sun, Moon } from 'lucide-react';
+import { Download, Upload, RotateCcw, Save, Database, Trash2, Loader2, Sun, Moon } from 'lucide-react';
 import { useTimetableStore } from '../store/useTimetableStore';
 import { Button, ConfirmModal } from './ui';
 import {
@@ -99,14 +99,14 @@ export function Header() {
       // If already saved, update instead of creating duplicate
       if (store.savedConfigId) {
         await fsUpdateConfig(store.savedConfigId, name, cfg);
-        toast.success(`Updated "${name}" in Firebase! 🔥`);
+        toast.success(`Updated "${name}" in Database! 🔥`);
       } else {
         const result = await fsSaveConfig(name, cfg, store.sessionId);
         store.setSavedConfigId(result.id);
-        toast.success(`Saved "${result.name}" to Firebase! 🔥`);
+        toast.success(`Saved "${result.name}" to Database! 🔥`);
       }
     } catch (err: any) {
-      toast.error('Firebase save failed: ' + err.message);
+      toast.error('Save failed: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -120,7 +120,7 @@ export function Header() {
       const list = await fsListConfigs(store.sessionId);
       setConfigs(list);
     } catch (err: any) {
-      toast.error('Failed to list Firebase configurations: ' + err.message);
+      toast.error('Failed to list configurations: ' + err.message);
     } finally {
       setLoadingConfigs(false);
     }
@@ -132,7 +132,7 @@ export function Header() {
       store.loadConfig(result.data);
       store.setSavedConfigId(result.id);
       setShowLoadModal(false);
-      toast.success(`Loaded "${result.name}" from Firebase! 🔥`);
+      toast.success(`Loaded "${result.name}" from Database! 🔥`);
     } catch (err: any) {
       toast.error('Failed to load configuration: ' + err.message);
     }
@@ -147,7 +147,7 @@ export function Header() {
       if (store.savedConfigId === id) {
         store.setSavedConfigId(null);
       }
-      toast.success('Configuration deleted from Firebase.');
+      toast.success('Configuration deleted from Database.');
     } catch (err: any) {
       toast.error('Failed to delete configuration: ' + err.message);
     }
@@ -232,7 +232,7 @@ export function Header() {
             size="sm"
             icon={<Database size={13} />}
             onClick={handleOpenLoad}
-            title="Load configuration from Firebase"
+            title="Load configuration from Database"
           >
             <span className="hidden sm:inline">Load</span>
           </Button>
@@ -244,7 +244,7 @@ export function Header() {
             icon={<Save size={13} />}
             onClick={handleCloudSave}
             loading={saving}
-            title="Save configuration to Firebase"
+            title="Save configuration to Database"
           >
             <span className="hidden sm:inline">Save</span>
           </Button>
@@ -262,24 +262,24 @@ export function Header() {
         </nav>
       </header>
 
-      {/* Firebase Load Modal */}
+      {/* Load Modal */}
       {showLoadModal && (
         <div className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in" style={{ zIndex: 9999 }}>
           <div className="bg-[#121832] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl relative animate-pop-in">
             <h3 className="text-lg font-bold text-slate-100 mb-1 flex items-center gap-2">
-              <Database size={18} className="text-orange-400" />
-              Load from Firebase
+              <Database size={18} className="text-brand" />
+              Load from Database
             </h3>
-            <p className="text-xs text-slate-500 mb-4">Configurations saved to your Firebase project (session: <code className="text-brand text-[10px]">{store.sessionId.slice(0, 16)}…</code>)</p>
+            <p className="text-xs text-slate-500 mb-4">Configurations saved to your local database (session: <code className="text-brand text-[10px]">{store.sessionId.slice(0, 16)}…</code>)</p>
             {loadingConfigs ? (
               <div className="flex flex-col items-center py-8 gap-2 text-slate-400">
-                <Loader2 className="animate-spin text-orange-400" size={24} />
-                <span className="text-xs">Fetching from Firebase…</span>
+                <Loader2 className="animate-spin text-brand" size={24} />
+                <span className="text-xs">Fetching from Database…</span>
               </div>
             ) : configs.length === 0 ? (
               <div className="text-center py-8 text-slate-500 text-sm">
                 <p>No saved configurations found for this session.</p>
-                <p className="text-xs mt-1 text-slate-600">Use "Save" to store your first config to Firebase.</p>
+                <p className="text-xs mt-1 text-slate-600">Use "Save" to store your first config to the database.</p>
               </div>
             ) : (
               <div className="max-h-60 overflow-y-auto space-y-2 pr-1">

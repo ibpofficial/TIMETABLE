@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { useTimetableStore } from '../store/useTimetableStore';
 import { fetchAiTip, fetchAiAgent } from '../api/client';
-import { Card } from './ui';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 interface ChatMessage {

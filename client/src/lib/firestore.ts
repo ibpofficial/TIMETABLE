@@ -1,43 +1,27 @@
-/**
- * Firestore persistence layer — replaces the Prisma/SQLite Express routes.
- * All saved configs and timetables are stored directly in Firestore from
- * the client, making the app work everywhere without a database server.
- *
- * Collections:
- *   savedConfigs/{docId}  → { name, sessionId, data (JSON string), createdAt, updatedAt }
- *   savedTimetables/{docId} → { name, sessionId, configId, data (JSON string), createdAt }
- */
-
-import {
-  collection, doc, addDoc, getDoc, getDocs,
-  deleteDoc, updateDoc, query, where, orderBy,
-  serverTimestamp, Timestamp
-} from 'firebase/firestore';
-import { db } from './firebase';
 import type { SchedulerConfig, ScheduleSolution, SavedConfig } from '../types';
 
-// ── Helper ────────────────────────────────────────────────────────────────────
-function tsToIso(ts: any): string {
-  if (!ts) return new Date().toISOString();
-  if (ts instanceof Timestamp) return ts.toDate().toISOString();
-  return String(ts);
+// Helper to make API calls to local SQLite backend
+async function fetchApi(url: string, options: RequestInit = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || `Request failed: ${response.statusText}`);
+  }
+
+  return response.json();
 }
 
 // ── Saved Configs ─────────────────────────────────────────────────────────────
 
 export async function fsListConfigs(sessionId: string): Promise<SavedConfig[]> {
-  const q = query(
-    collection(db, 'savedConfigs'),
-    where('sessionId', '==', sessionId),
-    orderBy('updatedAt', 'desc')
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({
-    id: d.id,
-    name: d.data().name,
-    createdAt: tsToIso(d.data().createdAt),
-    updatedAt: tsToIso(d.data().updatedAt),
-  }));
+  return fetchApi(`/api/configs?sessionId=${encodeURIComponent(sessionId)}`);
 }
 
 export async function fsSaveConfig(
@@ -45,34 +29,28 @@ export async function fsSaveConfig(
   data: SchedulerConfig,
   sessionId: string
 ): Promise<{ id: string; name: string }> {
-  const docRef = await addDoc(collection(db, 'savedConfigs'), {
-    name,
-    sessionId,
-    data: JSON.stringify(data),
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
+  return fetchApi('/api/configs', {
+    method: 'POST',
+    body: JSON.stringify({ name, data, sessionId }),
   });
-  return { id: docRef.id, name };
 }
 
 export async function fsLoadConfig(
   id: string
 ): Promise<{ id: string; name: string; data: SchedulerConfig }> {
-  const snap = await getDoc(doc(db, 'savedConfigs', id));
-  if (!snap.exists()) throw new Error('Saved configuration not found.');
-  const d = snap.data();
-  return { id: snap.id, name: d.name, data: JSON.parse(d.data) };
+  return fetchApi(`/api/configs/${encodeURIComponent(id)}`);
 }
 
 export async function fsDeleteConfig(id: string): Promise<void> {
-  await deleteDoc(doc(db, 'savedConfigs', id));
+  await fetchApi(`/api/configs/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
 }
 
 export async function fsUpdateConfig(id: string, name: string, data: SchedulerConfig): Promise<void> {
-  await updateDoc(doc(db, 'savedConfigs', id), {
-    name,
-    data: JSON.stringify(data),
-    updatedAt: serverTimestamp(),
+  await fetchApi(`/api/configs/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name, data }),
   });
 }
 
@@ -84,40 +62,24 @@ export async function fsSaveTimetable(
   data: ScheduleSolution,
   sessionId: string
 ): Promise<{ id: string; name: string }> {
-  const docRef = await addDoc(collection(db, 'savedTimetables'), {
-    name,
-    sessionId,
-    configId,
-    data: JSON.stringify(data),
-    createdAt: serverTimestamp(),
+  return fetchApi('/api/timetables', {
+    method: 'POST',
+    body: JSON.stringify({ name, configId, data, sessionId }),
   });
-  return { id: docRef.id, name };
 }
 
 export async function fsLoadTimetable(
   id: string
 ): Promise<{ id: string; name: string; configId: string; data: ScheduleSolution }> {
-  const snap = await getDoc(doc(db, 'savedTimetables', id));
-  if (!snap.exists()) throw new Error('Saved timetable not found.');
-  const d = snap.data();
-  return { id: snap.id, name: d.name, configId: d.configId, data: JSON.parse(d.data) };
+  return fetchApi(`/api/timetables/${encodeURIComponent(id)}`);
 }
 
-export async function fsListTimetables(sessionId: string) {
-  const q = query(
-    collection(db, 'savedTimetables'),
-    where('sessionId', '==', sessionId),
-    orderBy('createdAt', 'desc')
-  );
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({
-    id: d.id,
-    name: d.data().name,
-    configId: d.data().configId,
-    createdAt: tsToIso(d.data().createdAt),
-  }));
+export async function fsListTimetables(sessionId: string): Promise<{ id: string; name: string; configId: string; createdAt: string }[]> {
+  return fetchApi(`/api/timetables?sessionId=${encodeURIComponent(sessionId)}`);
 }
 
 export async function fsDeleteTimetable(id: string): Promise<void> {
-  await deleteDoc(doc(db, 'savedTimetables', id));
+  await fetchApi(`/api/timetables/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
 }
