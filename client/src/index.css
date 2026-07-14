@@ -618,3 +618,158 @@ body {
   box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02) !important;
 }
 
+/* ── AI Panel Light Mode Styling Overrides ── */
+:root[data-theme="light"] .no-print.mt-8 {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Header border & background */
+:root[data-theme="light"] .no-print.mt-8 > div.flex.items-center.justify-between.border-b {
+  border-color: #e2e8f0 !important;
+  background-color: #f8fafc !important;
+}
+
+/* Header title/subtitle text */
+:root[data-theme="light"] .no-print.mt-8 p.text-slate-200 {
+  color: #0f172a !important;
+}
+
+/* User Message bubble */
+:root[data-theme="light"] .bg-\[\#1a214d\]\/50 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+/* Assistant Message bubble */
+:root[data-theme="light"] .bg-\[\#111736\]\/65 {
+  background-color: #f0f7ff !important;
+  border-color: rgba(91, 140, 255, 0.25) !important;
+  border-left-color: #5b8cff !important;
+  color: #1e293b !important;
+  box-shadow: inset 0 1px 2px rgba(91, 140, 255, 0.02) !important;
+}
+
+/* Welcome box and standard markdown texts */
+:root[data-theme="light"] .bg-\[\#111736\]\/65 p,
+:root[data-theme="light"] .bg-\[\#111736\]\/65 li,
+:root[data-theme="light"] .bg-\[\#111736\]\/65 span,
+:root[data-theme="light"] .bg-\[\#1a214d\]\/50 p,
+:root[data-theme="light"] .bg-\[\#1a214d\]\/50 span {
+  color: #334155 !important;
+}
+
+:root[data-theme="light"] .bg-\[\#111736\]\/65 strong,
+:root[data-theme="light"] .bg-\[\#1a214d\]\/50 strong {
+  color: #0f172a !important;
+}
+
+/* Welcome box header text */
+:root[data-theme="light"] .bg-\[\#111736\]\/65 p.text-brand-light {
+  color: #2563eb !important;
+}
+
+/* Welcome Box list header text */
+:root[data-theme="light"] .bg-\[\#111736\]\/65 p.text-\[11px\] {
+  color: #2563eb !important;
+  border-bottom-color: rgba(37, 99, 235, 0.15) !important;
+}
+
+/* Welcome Box bullet indicator */
+:root[data-theme="light"] .bg-\[\#111736\]\/65 span.text-brand {
+  color: #2563eb !important;
+}
+
+/* Prompt starter cards */
+:root[data-theme="light"] .bg-\[\#111633\]\/55 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+:root[data-theme="light"] .bg-\[\#111633\]\/55:hover {
+  background-color: #f8fafc !important;
+  border-color: #5b8cff !important;
+  box-shadow: 0 4px 12px -4px rgba(91, 140, 255, 0.15) !important;
+}
+
+:root[data-theme="light"] .bg-\[\#111633\]\/55 p.text-slate-200 {
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] .bg-\[\#111633\]\/55 p.text-slate-500 {
+  color: #64748b !important;
+}
+
+:root[data-theme="light"] .bg-\[\#111633\]\/55 .bg-brand\/10 {
+  background-color: rgba(91, 140, 255, 0.1) !important;
+  color: #5b8cff !important;
+}
+
+/* Input area wrapper */
+:root[data-theme="light"] .bg-\[\#0c102b\]\/40 {
+  background-color: #f8fafc !important;
+  border-top-color: #cbd5e1 !important;
+}
+
+/* Input text box */
+:root[data-theme="light"] .bg-\[\#070b1f\] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+:root[data-theme="light"] .bg-\[\#070b1f\] textarea {
+  color: #0f172a !important;
+}
+
+:root[data-theme="light"] .bg-\[\#070b1f\] textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Follow-up suggestions */
+:root[data-theme="light"] .bg-\[\#1b2247\]\/40 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #2563eb !important;
+}
+
+:root[data-theme="light"] .bg-\[\#1b2247\]\/40:hover {
+  background-color: #f0f7ff !important;
+  border-color: #2563eb !important;
+  color: #1d4ed8 !important;
+}
+
+/* Hover actions popup */
+:root[data-theme="light"] .group-hover\:opacity-100 {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05) !important;
+}
+
+:root[data-theme="light"] .group-hover\:opacity-100 button {
+  color: #64748b !important;
+}
+
+:root[data-theme="light"] .group-hover\:opacity-100 button:hover {
+  background-color: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+/* Tab buttons */
+:root[data-theme="light"] .bg-white\/\[0\.03\] {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+  border-color: #cbd5e1 !important;
+}
+
+:root[data-theme="light"] .bg-white\/\[0\.03\] button {
+  color: #64748b !important;
+}
+
+:root[data-theme="light"] .bg-white\/\[0\.03\] button.bg-brand\/25 {
+  background-color: #5b8cff !important;
+  color: #ffffff !important;
+  border-color: #5b8cff !important;
+}
+
