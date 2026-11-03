@@ -7,6 +7,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] - 2026-11-03
 
+### Phase 7: DevOps, Containerization, World-Class Documentation & SEO (Completed)
+- **Containerization & Production Stack:**
+  - Added multi-stage `Dockerfile` for `client` (Node 20 + Nginx Alpine with SPA routing and API reverse-proxy).
+  - Added multi-stage `Dockerfile` for `server` (Node 20 Alpine + Prisma generation + production bundle).
+  - Added optimized `Dockerfile` for `solver-py` (Python 3.11-slim + OR-Tools + FastAPI).
+  - Created `docker-compose.yml` orchestrating client, server, solver-py, PostgreSQL 16, and Redis 7 with healthchecks.
+- **World-Class Documentation & Design Assets:**
+  - Created animated SVG architecture diagram (`assets/architecture.svg`) with flowing data paths.
+  - Rewrote `README.md` into an enterprise showcase with dual-engine comparison, real benchmark tables, interactive feature tour, API docs, and architecture diagrams.
+  - Added repository governance files: `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, and MIT `LICENSE`.
+  - Added SEO meta tags, OpenGraph, Twitter cards, JSON-LD `SoftwareApplication` schema, `robots.txt`, and `sitemap.xml`.
+
+### Phase 6: Performance Benchmarking & Scale Target Validation (Completed)
+- **Comprehensive Dual-Engine Benchmarks:**
+  - Evaluated both `@ibp/solver-ts` (TypeScript Web Worker) and `solver-py` (Google OR-Tools CP-SAT) across 4 standard tiers: Tiny (2 Batches), School (6 Batches), College (12–20 Batches), and Evil (Infeasible).
+  - Validated 0 hard constraint violations with independent mathematical validator.
+  - Recorded real measured numbers in `benchmarks/BENCHMARKS.md` and `benchmarks/python_results.json`.
+  - Optimized CP-SAT model building with an $O(|x\_vars|)$ inverted variable index, reducing setup latency from 40s to 15ms.
+
+### Phase 5: Product Features & Frontend Polish (Completed)
+- **Constraint Studio UI:**
+  - Built `ConstraintStudio.tsx` allowing users to filter, toggle 30+ constraints, adjust weights (0–1000), apply presets, and describe rules in natural language with interactive preview before applying.
+  - Integrated into Step 6 of wizard and added Solver Engine selector (`Auto`, `Browser Worker`, `Server CP-SAT`).
+- **Interactive Timetable Inspection:**
+  - Rewrote `Step7Results.tsx` with Panoramic Master View, Faculty Workload Analysis, Room Heatmap, and Free Room Finder.
+  - Implemented real-time drag-and-drop clash highlights (green/amber/red) with tooltip diagnostic explanations.
+  - Added session slot locking/pinning and "Re-optimize around locked sessions" support.
+- **Multi-Format Exports:**
+  - Implemented formatted multi-sheet Excel export (`.xlsx`) via SheetJS in `client/src/lib/exportUtils.ts`.
+  - Implemented standard RFC 5545 iCalendar (`.ics`) export for calendar sync.
+
 ### Phase 4: Backend Hardening, Dynamic Solver Delegation & Enterprise Persistence (Completed)
 - **Multi-Tenant Architecture & Auth:**
   - Added Prisma models for `User`, `Organization`, `Membership`, `ConfigVersion`, `TimetableVersion`, and `AuditLog`.

@@ -51,3 +51,4 @@ WORKDIR /app/server
 EXPOSE 5000
 
 CMD ["node", "dist/server.js"]
+

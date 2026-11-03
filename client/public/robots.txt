@@ -2,3 +2,4 @@ User-agent: *
 Allow: /
 
 Sitemap: https://ibptimebook.vercel.app/sitemap.xml
+

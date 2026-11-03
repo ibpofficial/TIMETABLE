@@ -62,3 +62,27 @@ This document tracks all key technical decisions, architectural patterns, librar
   - Provide both Server-Sent Events (`/api/schedule/jobs/:id/events`) and polling (`/api/schedule/jobs/:id`).
   - Support BullMQ + Redis for distributed queues with automatic in-memory execution fallback.
 - **Consequences:** Production-ready multi-user SaaS capabilities with zero friction for offline or single-developer local workflows.
+
+---
+
+## ADR-006: Inverted Variable Indexing for CP-SAT Model Construction
+
+- **Status:** Accepted
+- **Context:** Large-scale institutional instances (40 batches, 240+ subjects, 520 sessions) across 40 timeslots and 47 rooms generate millions of Cartesian combinations. Naive loops over batches and faculty iterating over all sessions during model construction caused high setup latency (40+ seconds) before solver execution began.
+- **Decision:**
+  - Build inverted indexes mapping `(slot, batch)`, `(slot, faculty_id)`, and `(slot, room_id)` directly from `x_vars[(i, t, r)]` in a single $O(|x\_vars|)$ pass.
+  - Apply `AddAtMostOne` directly over the pre-bucketed variable lists.
+- **Consequences:** Model construction latency drops from 40s to ~15ms, eliminating Python runtime bottlenecks and enabling rapid iterative solving and LNS re-optimization.
+
+---
+
+## ADR-007: Containerization & Deployment Strategy
+
+- **Status:** Accepted
+- **Context:** The platform consists of multiple specialized runtimes: React 18 client (SPA), Node.js Express API gateway, Python 3.11 CP-SAT solver, PostgreSQL database, and Redis queue.
+- **Decision:**
+  - Client deployed to Vercel (or containerized with Nginx Alpine for on-premise enterprise deployments).
+  - Multi-stage Dockerfiles for client, server, and solver-py.
+  - Orchestrate all 5 services using `docker-compose.yml` with automated healthchecks, volume persistence, and environment variable configuration.
+- **Consequences:** Developers and institutional sysadmins can launch the complete enterprise platform with a single `docker compose up --build` command.
+

@@ -153,6 +153,9 @@ solver-py/.venv/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
 
 # OS and Editor
 .DS_Store

@@ -230,73 +230,69 @@ class CPSATScheduler:
                 ]
             model.AddExactlyOne(valid_opts)
 
-        # 4. Hard Resource No-Overlap Constraints
-        # A timeslot slot_idx is covered by session starting at t if t <= slot_idx < t + sess_len
-        # For each timeslot and resource (Batch, Faculty, Room), sum of occupying sessions <= 1
+        # 4. Hard Resource No-Overlap Constraints (Optimized O(|x_vars|) inverted index)
+        slot_batch_vars: Dict[int, Dict[str, List[cp_model.IntVar]]] = {
+            t: {b: [] for b in self.state.batches} for t in range(len(self.timeslots))
+        }
+        slot_fac_vars: Dict[int, Dict[str, List[cp_model.IntVar]]] = {
+            t: {f.id: [] for f in self.state.faculties} for t in range(len(self.timeslots))
+        }
+        slot_room_vars: Dict[int, Dict[int, List[cp_model.IntVar]]] = {
+            t: {r_idx: [] for r_idx in range(len(self.rooms))} for t in range(len(self.timeslots))
+        }
+
+        for (i, start_t, r_idx), var in x_vars.items():
+            sess = sessions[i]
+            sess_len = sess["length"]
+            for offset in range(sess_len):
+                slot = start_t + offset
+                if slot < len(self.timeslots):
+                    for b in sess["batches"]:
+                        if b in slot_batch_vars[slot]:
+                            slot_batch_vars[slot][b].append(var)
+                    for fid in sess["facultyIds"]:
+                        if fid in slot_fac_vars[slot]:
+                            slot_fac_vars[slot][fid].append(var)
+                    slot_room_vars[slot][r_idx].append(var)
 
         for slot_idx, ts in enumerate(self.timeslots):
             if ts.isBreak:
                 continue
-
-            # Batch non-overlap
-            for batch in self.state.batches:
-                batch_occupiers = []
-                for i, sess in enumerate(sessions):
-                    if batch in sess["batches"]:
-                        sess_len = sess["length"]
-                        for start_t in range(max(0, slot_idx - sess_len + 1), slot_idx + 1):
-                            for r_idx in range(len(self.rooms)):
-                                if (i, start_t, r_idx) in x_vars:
-                                    batch_occupiers.append(x_vars[(i, start_t, r_idx)])
-                if len(batch_occupiers) > 1:
-                    model.AddAtMostOne(batch_occupiers)
-
-            # Faculty non-overlap
-            for fac in self.state.faculties:
-                fac_occupiers = []
-                for i, sess in enumerate(sessions):
-                    if fac.id in sess["facultyIds"]:
-                        sess_len = sess["length"]
-                        for start_t in range(max(0, slot_idx - sess_len + 1), slot_idx + 1):
-                            for r_idx in range(len(self.rooms)):
-                                if (i, start_t, r_idx) in x_vars:
-                                    fac_occupiers.append(x_vars[(i, start_t, r_idx)])
-                if len(fac_occupiers) > 1:
-                    model.AddAtMostOne(fac_occupiers)
-
-            # Room non-overlap
-            for r_idx in range(len(self.rooms)):
-                room_occupiers = []
-                for i, sess in enumerate(sessions):
-                    sess_len = sess["length"]
-                    for start_t in range(max(0, slot_idx - sess_len + 1), slot_idx + 1):
-                        if (i, start_t, r_idx) in x_vars:
-                            room_occupiers.append(x_vars[(i, start_t, r_idx)])
-                if len(room_occupiers) > 1:
-                    model.AddAtMostOne(room_occupiers)
+            for b_vars in slot_batch_vars[slot_idx].values():
+                if len(b_vars) > 1:
+                    model.AddAtMostOne(b_vars)
+            for f_vars in slot_fac_vars[slot_idx].values():
+                if len(f_vars) > 1:
+                    model.AddAtMostOne(f_vars)
+            for r_vars in slot_room_vars[slot_idx].values():
+                if len(r_vars) > 1:
+                    model.AddAtMostOne(r_vars)
 
         # 5. Batch max classes per day
-        for day in self.state.days:
-            day_slot_indices = [idx for idx, t in enumerate(self.timeslots) if t.day == day and not t.isBreak]
-            for batch in self.state.batches:
-                day_class_vars = []
-                for i, sess in enumerate(sessions):
-                    if batch in sess["batches"]:
-                        for t, r in session_valid_assignments[i]:
-                            if t in day_slot_indices:
-                                day_class_vars.append(x_vars[(i, t, r)] * sess["length"])
-                if day_class_vars:
-                    model.Add(sum(day_class_vars) <= self.state.maxClassesPerDay)
+        batch_day_vars: Dict[Tuple[str, str], List[cp_model.IntVar]] = {}
+        fac_load_vars: Dict[str, List[cp_model.IntVar]] = {}
+
+        for (i, t, r), var in x_vars.items():
+            sess = sessions[i]
+            day = self.timeslots[t].day
+            for b in sess["batches"]:
+                key = (b, day)
+                if key not in batch_day_vars:
+                    batch_day_vars[key] = []
+                batch_day_vars[key].append(var * sess["length"])
+
+            for fid in sess["facultyIds"]:
+                if fid not in fac_load_vars:
+                    fac_load_vars[fid] = []
+                fac_load_vars[fid].append(var * sess["length"])
+
+        for (b, day), terms in batch_day_vars.items():
+            model.Add(sum(terms) <= self.state.maxClassesPerDay)
 
         # 6. Faculty weekly load limit
         for fac in self.state.faculties:
-            fac_week_vars = []
-            for i, sess in enumerate(sessions):
-                if fac.id in sess["facultyIds"]:
-                    for t, r in session_valid_assignments[i]:
-                        fac_week_vars.append(x_vars[(i, t, r)] * sess["length"])
-            if fac_week_vars:
-                model.Add(sum(fac_week_vars) <= fac.maxWeeklySlots)
+            if fac.id in fac_load_vars:
+                model.Add(sum(fac_load_vars[fac.id]) <= fac.maxWeeklySlots)
 
         # 7. Symmetry Breaking: order identical sessions of the same subject
         for s in self.state.subjects:
@@ -342,7 +338,7 @@ class CPSATScheduler:
         solver.parameters.max_time_in_seconds = float(
             time_limit_seconds or self.state.options.timeLimitSeconds or 30.0
         )
-        solver.parameters.num_workers = int(self.state.options.numWorkers or 4)
+        solver.parameters.num_workers = int(self.state.options.numWorkers or 8)
         if self.state.options.randomSeed:
             solver.parameters.random_seed = self.state.options.randomSeed
 

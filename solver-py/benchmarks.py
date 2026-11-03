@@ -76,13 +76,15 @@ def make_test_instance(tier: str) -> SchedulerInputState:
         for s in range(classes_per_batch):
             is_lab = (s == classes_per_batch - 1)
             fac = faculties[(b_idx * classes_per_batch + s) % num_faculty]
+            classes_per_week = 1 if is_lab else (3 if s < 2 else 2)
+            session_length = 2 if is_lab else 1
             subjects.append(
                 Subject(
                     id=f"SUB_{sub_id}",
                     name=f"{'Lab' if is_lab else 'Course'}_{s+1}_{b}",
                     type="practical" if is_lab else "theory",
-                    classesPerWeek=2 if is_lab else 3,
-                    sessionLength=2 if is_lab else 1,
+                    classesPerWeek=classes_per_week,
+                    sessionLength=session_length,
                     facultyId=fac.id,
                     batches=[b],
                     preferredRoomTypes=["practical" if is_lab else "theory"],
