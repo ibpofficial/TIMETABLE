@@ -23,7 +23,7 @@ if (!process.env.OPENROUTER_API_KEY) {
 
 const prisma = new PrismaClient();
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 const PYTHON_SOLVER_URL = process.env.PYTHON_SOLVER_URL || 'http://localhost:8000';
 
 // Enable CORS and JSON parsing
