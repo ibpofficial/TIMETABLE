@@ -134,3 +134,4 @@ export function migrateConfig(raw: any): SchedulerInputState {
 
   return migrated;
 }
+

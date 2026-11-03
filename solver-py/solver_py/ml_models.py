@@ -130,3 +130,4 @@ def recommend_solver_strategy(state: SchedulerInputState) -> Dict[str, Any]:
             "useLNS": True,
             "reason": "Large institutional problem; recommend deep CP-SAT search + LNS polishing.",
         }
+

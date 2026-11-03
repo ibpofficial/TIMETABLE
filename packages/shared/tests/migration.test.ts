@@ -97,3 +97,4 @@ describe('Configuration Migration Engine (v1 -> v2)', () => {
     expect(result.constraints?.length).toBeGreaterThan(20);
   });
 });
+

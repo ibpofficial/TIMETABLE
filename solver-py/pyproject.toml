@@ -35,3 +35,4 @@ target-version = "py311"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 addopts = "-v --cov=solver_py --cov-report=term-missing"
+

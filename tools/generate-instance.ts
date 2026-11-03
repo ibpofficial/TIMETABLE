@@ -258,3 +258,4 @@ export function generateInstance(options: GeneratorOptions = {}): { config: Sche
 
   return { config, expectedFeasible };
 }
+

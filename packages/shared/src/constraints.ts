@@ -325,3 +325,4 @@ export const BUILTIN_CONSTRAINTS: ConstraintTemplate[] = [
     params: { day: 'Wednesday', startHour: 14 },
   },
 ];
+

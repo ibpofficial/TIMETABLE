@@ -87,3 +87,4 @@ def test_lns_optimization():
     assert polished is not None
     report = validate_solution(state, polished)
     assert report.is_valid is True
+

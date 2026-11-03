@@ -49,3 +49,4 @@ This document tracks all key technical decisions, architectural patterns, librar
   - Use `uv` (Astral) for hermetic Python runtime downloading and dependency management.
   - Define `solver-py/pyproject.toml` with pinned dependencies.
 - **Consequences:** 10x-100x faster environment creation, repeatable lockfiles across platforms (Windows/Linux/macOS), zero reliance on Windows registry or admin privileges.
+

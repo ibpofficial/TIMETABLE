@@ -110,3 +110,4 @@ def validate_solution(state: SchedulerInputState, solution: ScheduleSolution) ->
         errors=errors,
         soft_penalty=soft_penalty,
     )
+

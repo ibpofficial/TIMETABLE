@@ -11,3 +11,4 @@ describe('Performance Benchmarks Runner', () => {
     }
   });
 });
+

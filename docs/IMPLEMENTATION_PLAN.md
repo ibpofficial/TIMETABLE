@@ -113,3 +113,4 @@ The IBP Timetable Generator is currently a functional college timetable creator 
 | **Solving Timeout on Massive Universities** | High | Medium | Fast initial feasible solution via DSATUR + flow matching within 5 seconds, followed by progressive CP-SAT/LNS refinement with streaming best-so-far. |
 | **Node/Python Schema Drift** | High | Low | JSON Schema as central contract; automated generation of TypeScript and Pydantic types checked during CI. |
 | **Windows Sandbox / Tool Availability** | Medium | Low | Use isolated `uv` for Python environments and MinGit; zero dependency on system administrator rights. |
+

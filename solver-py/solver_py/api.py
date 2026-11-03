@@ -188,3 +188,4 @@ def repair_schedule_endpoint(req: RepairRequest):
 @app.post("/predict-difficulty")
 def predict_difficulty_endpoint(state: SchedulerInputState):
     return difficulty_predictor.predict(state)
+

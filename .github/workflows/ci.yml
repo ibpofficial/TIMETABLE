@@ -43,3 +43,4 @@ jobs:
 
       - name: Run Optimization Benchmarks
         run: npm run benchmark
+

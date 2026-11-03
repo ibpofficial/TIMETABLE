@@ -78,3 +78,4 @@ def repair_schedule_minimum_disruption(
 
     scheduler = CPSATScheduler(repaired_state)
     return scheduler.solve()
+

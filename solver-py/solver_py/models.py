@@ -244,3 +244,4 @@ class SolverProgress(BaseModel):
     error: Optional[str] = None
     elapsedMs: Optional[float] = None
     bestScore: Optional[float] = None
+

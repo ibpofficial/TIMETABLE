@@ -61,3 +61,4 @@ def test_hypothesis_zero_hard_constraint_violations(num_batches: int, classes_pe
         report = validate_solution(state, solution)
         assert report.is_valid is True, f"Hard violations detected: {report.errors}"
         assert report.hard_violations == 0
+

@@ -112,3 +112,4 @@ def test_hungarian_room_assignment():
     assignments = assign_rooms_hungarian(sessions, rooms)
     assert assignments["s1"] == "Large Theory"
     assert assignments["s2"] == "Lab 1"
+

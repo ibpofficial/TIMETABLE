@@ -160,3 +160,4 @@ export function runBenchmarks(): BenchmarkResult[] {
 if (require.main === module) {
   runBenchmarks();
 }
+
