@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import { SchedulerInputState, ConstraintTemplate } from './types';
-import { zConstraintTemplate } from './schemas';
 
 export const zParsedConstraintDraft = z.object({
   description: z.string().min(3),
@@ -83,4 +82,59 @@ export function applyApprovedConstraint(state: SchedulerInputState, draft: Parse
 
   return next;
 }
+
+/**
+ * Natural language constraint parser: extracts intent, entity targets, and severity into a valid ConstraintTemplate.
+ */
+export function parseNaturalLanguageConstraint(
+  prompt: string,
+  context?: { faculties?: string[]; batches?: string[]; rooms?: string[]; days?: string[] }
+): ConstraintTemplate {
+  const lower = prompt.toLowerCase();
+
+  let targetType: 'faculty' | 'batch' | 'room' | 'subject' | 'global' = 'global';
+  let targetName = 'Global';
+
+  if (context?.faculties) {
+    const matchedFac = context.faculties.find((f) => lower.includes(f.toLowerCase()));
+    if (matchedFac) {
+      targetType = 'faculty';
+      targetName = matchedFac;
+    }
+  }
+
+  if (targetType === 'global' && context?.batches) {
+    const matchedBatch = context.batches.find((b) => lower.includes(b.toLowerCase()));
+    if (matchedBatch) {
+      targetType = 'batch';
+      targetName = matchedBatch;
+    }
+  }
+
+  if (targetType === 'global' && context?.rooms) {
+    const matchedRoom = context.rooms.find((r) => lower.includes(r.toLowerCase()));
+    if (matchedRoom) {
+      targetType = 'room';
+      targetName = matchedRoom;
+    }
+  }
+
+  const isHard = lower.includes('never') || lower.includes('must') || lower.includes('no ') || lower.includes('cannot');
+
+  return {
+    id: `nl_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    name: prompt.length > 45 ? prompt.slice(0, 42) + '...' : prompt,
+    kind: isHard ? 'HARD' : 'SOFT',
+    scope: targetType,
+    weight: isHard ? 1000 : 75,
+    enabled: true,
+    description: `Rule: "${prompt}" [Scope: ${targetName}]`,
+    params: {
+      rawPrompt: prompt,
+      targetType,
+      targetName,
+    },
+  };
+}
+
 

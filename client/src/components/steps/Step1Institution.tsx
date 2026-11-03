@@ -265,6 +265,40 @@ export function Step1Institution() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Left Column: Schedule Settings */}
         <div className="lg:col-span-1 flex flex-col gap-5">
+          {/* Institution Type Selector */}
+          <Card>
+            <h3 className="font-semibold text-slate-200 mb-2 flex items-center gap-2">
+              <span className="w-6 h-6 bg-brand/20 text-brand rounded text-xs flex items-center justify-center font-bold">★</span>
+              Institution Archetype
+            </h3>
+            <p className="text-xs text-slate-400 mb-3">
+              Tailors wizard validation, room allocation, and constraint defaults.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {[
+                { type: 'college', label: 'College', desc: 'Batches, labs & electives' },
+                { type: 'university', label: 'University', desc: 'Credits & programs' },
+                { type: 'school', label: 'School', desc: 'Periods & sections' },
+                { type: 'coaching', label: 'Coaching', desc: 'Intensive shifts' },
+                { type: 'exam', label: 'Exam Centre', desc: 'Seating & invigilators' },
+              ].map((item) => (
+                <button
+                  key={item.type}
+                  type="button"
+                  onClick={() => store.setInstitutionType(item.type as any)}
+                  className={`p-2 rounded-xl text-left border transition ${
+                    store.institutionType === item.type
+                      ? 'bg-brand/20 border-brand text-white shadow-sm'
+                      : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white hover:border-white/10'
+                  }`}
+                >
+                  <div className="text-xs font-bold">{item.label}</div>
+                  <div className="text-[10px] text-slate-400 leading-tight mt-0.5">{item.desc}</div>
+                </button>
+              ))}
+            </div>
+          </Card>
+
           <Card>
             <h3 className="font-semibold text-slate-200 mb-4 flex items-center gap-2">
               <span className="w-6 h-6 bg-brand/20 text-brand rounded text-xs flex items-center justify-center font-bold">1</span>

@@ -5,6 +5,9 @@ import { TimetableSolver } from '../scheduler/solver';
 // Client-side in-memory job store and workers registry
 const clientJobs = new Map<string, JobState>();
 const clientWorkers = new Map<string, Worker>();
+const remoteJobs = new Set<string>();
+
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 // Helper to run solver inline on the main thread (fallback if Workers are not supported)
 function runSolverInline(state: SchedulerConfig, jobId: string) {
@@ -49,6 +52,24 @@ function runSolverInline(state: SchedulerConfig, jobId: string) {
 // ── Solver Jobs ─────────────────────────────────────────────────────────────
 
 export async function startGeneration(state: SchedulerConfig): Promise<{ jobId: string }> {
+  // If user requests Python CP-SAT or auto-delegation, attempt remote backend execution first
+  if (state.options?.engine === 'python' || (state.options?.engine !== 'ts' && state.batches.length > 10)) {
+    try {
+      const res = await fetch(`${API_BASE}/api/schedule/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state, options: state.options }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        remoteJobs.add(data.jobId);
+        return { jobId: data.jobId };
+      }
+    } catch {
+      // Backend unavailable; seamlessly fall back to client Web Worker below
+    }
+  }
+
   const jobId = `job_${Math.random().toString(36).slice(2, 9)}`;
   const total = state.subjects.reduce((sum, s) => sum + s.classesPerWeek, 0);
 
@@ -122,15 +143,32 @@ export async function startGeneration(state: SchedulerConfig): Promise<{ jobId: 
 }
 
 export async function pollJob(jobId: string): Promise<JobState> {
+  if (remoteJobs.has(jobId)) {
+    try {
+      const res = await fetch(`${API_BASE}/api/schedule/jobs/${jobId}`);
+      if (res.ok) {
+        return await res.json();
+      }
+    } catch {
+      // Fall through to local map if remote polling failed
+    }
+  }
+
   const job = clientJobs.get(jobId);
   if (!job) {
     throw new Error('Job not found.');
   }
-  // Return a copy of the job state to ensure React triggers state changes cleanly
   return { ...job };
 }
 
 export async function cancelJob(jobId: string): Promise<{ message: string }> {
+  if (remoteJobs.has(jobId)) {
+    try {
+      await fetch(`${API_BASE}/api/schedule/jobs/${jobId}/cancel`, { method: 'POST' });
+      return { message: 'Job cancellation requested.' };
+    } catch {}
+  }
+
   const job = clientJobs.get(jobId);
   if (job && job.status === 'running') {
     job.status = 'cancelled';
@@ -145,8 +183,6 @@ export async function cancelJob(jobId: string): Promise<{ message: string }> {
 }
 
 // ── AI Gateway Proxy Calls ───────────────────────────────────────────────────
-
-const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export async function fetchAiTip(eventName: string, payload: unknown, context: unknown, signal?: AbortSignal): Promise<{ reply: string }> {
   const response = await fetch(`${API_BASE}/api/ai/tip`, {

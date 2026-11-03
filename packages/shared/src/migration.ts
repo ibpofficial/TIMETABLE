@@ -9,7 +9,9 @@ export function migrateConfig(raw: any): SchedulerInputState {
   const rawConfig = { ...raw };
 
   // Detect and migrate v1 -> v2
-  const currentVersion = rawConfig.version ?? 1;
+  if (rawConfig.version === 2) {
+    return rawConfig as SchedulerInputState;
+  }
 
   const theoryList: Room[] = (rawConfig.rooms?.theoryList || []).map((r: any) => ({
     id: String(r.id || `room_${Math.random().toString(36).substring(2, 7)}`),

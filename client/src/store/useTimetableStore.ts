@@ -89,11 +89,14 @@ interface TimetableState {
   solverOptions: SolverOptions;
   setSolverOptions: (opts: Partial<SolverOptions>) => void;
 
-  // Generation state
+  // Generation state & Interactive Editor
   jobId: string | null;
   jobStatus: JobState | null;
   solution: ScheduleSolution | null;
   diagnostics: FailureDiagnostic[] | null;
+  pinnedAssignments: string[];
+  togglePinAssignment: (assignmentId: string) => void;
+  updateAssignmentSlot: (assignmentId: string, timeslotId: string, room?: string) => void;
   setJobId: (id: string | null) => void;
   setJobStatus: (status: JobState | null) => void;
   setSolution: (sol: ScheduleSolution | null) => void;
@@ -166,6 +169,7 @@ const defaultState = {
   jobStatus: null,
   solution: null,
   diagnostics: null,
+  pinnedAssignments: [],
   savedConfigId: null,
   departments: [],
   programs: [],
@@ -275,6 +279,54 @@ export const useTimetableStore = create<TimetableState>()(
       setJobStatus: (jobStatus) => set({ jobStatus }),
       setSolution: (solution) => set({ solution }),
       setDiagnostics: (diagnostics) => set({ diagnostics }),
+      togglePinAssignment: (id) => set((s) => ({
+        pinnedAssignments: s.pinnedAssignments.includes(id)
+          ? s.pinnedAssignments.filter((pid) => pid !== id)
+          : [...s.pinnedAssignments, id],
+      })),
+      updateAssignmentSlot: (assignmentId, timeslotId, room) => set((s) => {
+        if (!s.solution) return {};
+        const newByBatch: Record<string, typeof s.solution.byBatch[string]> = {};
+
+        for (const [batch, list] of Object.entries(s.solution.byBatch)) {
+          newByBatch[batch] = list.map((a) => {
+            if (a.id === assignmentId) {
+              return {
+                ...a,
+                timeslotId,
+                room: room || a.room,
+              };
+            }
+            return a;
+          });
+        }
+
+        const newByFaculty: Record<string, any[]> = {};
+        const newByRoom: Record<string, any[]> = {};
+
+        for (const f of s.faculties) newByFaculty[f.id] = [];
+        for (const r of [...s.theoryRooms, ...s.labRooms]) newByRoom[r.name] = [];
+
+        for (const list of Object.values(newByBatch)) {
+          for (const a of list) {
+            if (a.facultyId && newByFaculty[a.facultyId]) {
+              if (!newByFaculty[a.facultyId].some((x) => x.id === a.id)) newByFaculty[a.facultyId].push(a);
+            }
+            if (a.room && newByRoom[a.room]) {
+              if (!newByRoom[a.room].some((x) => x.id === a.id)) newByRoom[a.room].push(a);
+            }
+          }
+        }
+
+        return {
+          solution: {
+            ...s.solution,
+            byBatch: newByBatch,
+            byFaculty: newByFaculty,
+            byRoom: newByRoom,
+          },
+        };
+      }),
       setSavedConfigId: (savedConfigId) => set({ savedConfigId }),
 
       addDepartment: (dept) => set((s) => ({ departments: [...s.departments, dept] })),

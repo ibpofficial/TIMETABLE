@@ -7,7 +7,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased] - 2026-11-03
 
-### Phase 2: Richer Academic Data Model & Migration Engine (Completed)
+### Phase 4: Backend Hardening, Dynamic Solver Delegation & Enterprise Persistence (Completed)
+- **Multi-Tenant Architecture & Auth:**
+  - Added Prisma models for `User`, `Organization`, `Membership`, `ConfigVersion`, `TimetableVersion`, and `AuditLog`.
+  - Implemented JWT authentication and password hashing (`bcryptjs`) with organization scoping.
+  - Implemented `optionalAuth` preserving seamless backward compatibility for anonymous/legacy session IDs while supporting secure multi-tenant deployments.
+  - Added full version history snapshots and one-click rollback (`/api/configs/:id/rollback/:version`).
+- **Dynamic Solver Delegation & SSE Streaming:**
+  - Upgraded job runner in `server/src/jobs.ts` with dynamic solver routing: dispatches to Python CP-SAT service at `${PYTHON_SOLVER_URL}/solve` for large or explicit python requests.
+  - Automatic fault-tolerant fallback: if Python microservice is unavailable or errors, seamlessly falls back to `@ibp/solver-ts` without interrupting the user.
+  - Added real-time Server-Sent Events (SSE) streaming endpoint (`/api/schedule/jobs/:id/events`) alongside HTTP polling.
+- **Queue & Worker Architecture:**
+  - Added `JobQueueManager` with BullMQ + Redis for distributed worker execution and automatic zero-dependency in-memory fallback.
+- **Verification:**
+  - 14 integration tests in `server/tests/server_integration.test.ts` covering auth, config versioning, rollbacks, job lifecycle, audit logging, and solver fallback. 100% test pass rate across 43 tests in monorepo.
+
+### Phase 3: Industrial Solver Microservice (solver-py) (Completed)
+- **Python CP-SAT Microservice:**
+  - Built `solver-py/` powered by Google OR-Tools CP-SAT with multi-worker parallelism, symmetry breaking, and solution streaming.
+  - Implemented Large Neighborhood Search (LNS) and minimal-disruption incremental repair (`repair_schedule_minimum_disruption`).
+  - Added DSA algorithms: Conflict Graph + DSATUR graph coloring, Bitset Occupancy Matrix, Hungarian room matching (SciPy), and Hall's condition / flow feasibility pre-check.
+  - Added machine learning models: Gradient Boosting difficulty predictor and solver strategy recommender.
+  - Built independent mathematical validator (`validator.py`).
+  - Implemented FastAPI microservice (`solver_py/api.py`) exposing `/solve`, `/jobs/{id}`, `/validate`, `/explain`, `/repair`, and `/predict-difficulty`.
+  - Comprehensive Pytest suite with Hypothesis property-based testing: 13/13 tests passed, 87% code coverage.
+
 - **Domain Modeling Enhancements:**
   - Added support for 5 Institution Types: `school`, `college`, `university`, `coaching`, `exam`.
   - Added `studentGroups` for lab sub-group division (e.g. A1, A2).

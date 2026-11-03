@@ -7,20 +7,111 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  name         String
+  role         String        @default("ADMIN") // OWNER, ADMIN, VIEWER
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  memberships  Membership[]
+  auditLogs    AuditLog[]
+}
+
+model Organization {
+  id          String        @id @default(uuid())
+  name        String
+  slug        String        @unique
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  memberships Membership[]
+  configs     SavedConfig[]
+  timetables  SavedTimetable[]
+  auditLogs   AuditLog[]
+}
+
+model Membership {
+  id        String       @id @default(uuid())
+  userId    String
+  orgId     String
+  role      String       @default("VIEWER") // OWNER, ADMIN, VIEWER
+  createdAt DateTime     @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId])
+}
+
 model SavedConfig {
-  id        String   @id @default(uuid())
+  id        String          @id @default(uuid())
   name      String
-  sessionId String   // to tie config to a user/browser session
-  data      String   // Serialized state configuration JSON
+  sessionId String          // To tie config to a browser session (legacy / anonymous)
+  orgId     String?         // Optional organization scoping
+  data      String          // Serialized state configuration JSON (v2 or v1)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  organization Organization?  @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  versions     ConfigVersion[]
+}
+
+model ConfigVersion {
+  id        String   @id @default(uuid())
+  configId  String
+  version   Int
+  message   String   @default("")
+  authorId  String?
+  data      String   // Full serialized snapshot JSON
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  config    SavedConfig @relation(fields: [configId], references: [id], onDelete: Cascade)
+
+  @@index([configId, version])
 }
 
 model SavedTimetable {
-  id        String   @id @default(uuid())
+  id        String             @id @default(uuid())
   name      String
-  sessionId String   // to tie timetable to a user/browser session
+  sessionId String             // To tie timetable to a browser session (legacy / anonymous)
+  orgId     String?            // Optional organization scoping
   configId  String
-  data      String   // Serialized solution schedule JSON
-  createdAt DateTime @default(now())
+  data      String             // Serialized solution schedule JSON
+  createdAt DateTime           @default(now())
+
+  organization Organization?     @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  versions     TimetableVersion[]
+}
+
+model TimetableVersion {
+  id               String   @id @default(uuid())
+  timetableId      String
+  version          Int
+  authorId         String?
+  inputData        String   // Serialized input configuration snapshot
+  outputData       String   // Serialized solution schedule
+  solverStats      String?  // Metrics (timeMs, softScore, engine)
+  validationResult String?  // Validation summary JSON
+  createdAt        DateTime @default(now())
+
+  timetable        SavedTimetable @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+
+  @@index([timetableId, version])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  orgId      String?
+  userId     String?
+  action     String   // e.g. "CONFIG_CREATE", "CONFIG_UPDATE", "TIMETABLE_SOLVE", "USER_LOGIN"
+  entityType String   // "config", "timetable", "auth", "job"
+  entityId   String?
+  details    String?  // JSON context or summary
+  createdAt  DateTime @default(now())
+
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, createdAt])
 }

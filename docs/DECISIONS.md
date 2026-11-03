@@ -50,3 +50,15 @@ This document tracks all key technical decisions, architectural patterns, librar
   - Define `solver-py/pyproject.toml` with pinned dependencies.
 - **Consequences:** 10x-100x faster environment creation, repeatable lockfiles across platforms (Windows/Linux/macOS), zero reliance on Windows registry or admin privileges.
 
+
+## ADR-005: Backend Hardening, Dynamic Solver Routing & Versioned Persistence
+
+- **Context:** The system needs to support multi-tenant organizations, audit trails, version control with rollbacks for both configurations and timetable runs, background job queueing, and seamless delegation between Python CP-SAT and the TypeScript fallback engine without breaking legacy anonymous sessions or dev setups.
+- **Decision:**
+  - Standardize on Prisma with SQLite for zero-dependency local dev and PostgreSQL for production deployments via `DATABASE_URL`.
+  - Introduce `User`, `Organization`, `Membership`, `ConfigVersion`, `TimetableVersion`, and `AuditLog` models.
+  - Implement optional JWT authentication: requests with Bearer tokens are multi-tenant and organization-scoped; unauthenticated requests fall back seamlessly to session-based scoping (`sessionId`).
+  - Implement dynamic solver routing in `server/src/jobs.ts`: problems with `engine: 'python'` or `batches.length > 10` are delegated via HTTP to `PYTHON_SOLVER_URL`. If the microservice is unavailable or errors, the server gracefully falls back to `@ibp/solver-ts`.
+  - Provide both Server-Sent Events (`/api/schedule/jobs/:id/events`) and polling (`/api/schedule/jobs/:id`).
+  - Support BullMQ + Redis for distributed queues with automatic in-memory execution fallback.
+- **Consequences:** Production-ready multi-user SaaS capabilities with zero friction for offline or single-developer local workflows.

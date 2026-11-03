@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: ibp-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ibp_user
+      POSTGRES_PASSWORD: ibp_password
+      POSTGRES_DB: ibp_timetable
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ibp_user -d ibp_timetable"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: ibp-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  solver-py:
+    build:
+      context: ./solver-py
+      dockerfile: Dockerfile
+    container_name: ibp-solver-py
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  server:
+    build:
+      context: .
+      dockerfile: server/Dockerfile
+    container_name: ibp-server
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - DATABASE_URL=postgresql://ibp_user:ibp_password@postgres:5432/ibp_timetable?schema=public
+      - REDIS_URL=redis://redis:6379
+      - PYTHON_SOLVER_URL=http://solver-py:8000
+      - JWT_SECRET=ibp_production_secure_secret_key_change_me
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      solver-py:
+        condition: service_healthy
+
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: ibp-client
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - server
+
+volumes:
+  postgres_data:
+  redis_data:

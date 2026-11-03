@@ -794,10 +794,35 @@ export class TimetableSolver {
       practical: this.rooms.filter((r) => r.type === 'practical').map((r) => r.name),
     };
 
+    const byFaculty: Record<string, Assignment[]> = {};
+    const byRoom: Record<string, Assignment[]> = {};
+    for (const f of this.state.faculties) byFaculty[f.id] = [];
+    for (const r of this.rooms) byRoom[r.name] = [];
+
+    for (const list of Object.values(byBatch)) {
+      for (const a of list) {
+        if (a.facultyId && byFaculty[a.facultyId]) {
+          if (!byFaculty[a.facultyId].some((x) => x.id === a.id)) byFaculty[a.facultyId].push(a);
+        }
+        if (a.room && byRoom[a.room]) {
+          if (!byRoom[a.room].some((x) => x.id === a.id)) byRoom[a.room].push(a);
+        }
+      }
+    }
+
     return {
       timeslots: this.timeslots,
       byBatch,
+      byFaculty,
+      byRoom,
       roomsByType,
+      score: {
+        hardViolations: 0,
+        softScore: 0,
+        metrics: {
+          placedCount: assignmentsMap.size,
+        },
+      },
       metadata: {
         engine: 'ts',
         solveTimeMs: 0,

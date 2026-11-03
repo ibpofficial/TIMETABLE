@@ -14,11 +14,20 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Path Aliases for Monorepo */
+    "baseUrl": ".",
+    "paths": {
+      "@ibp/shared": ["../packages/shared/src/index.ts"],
+      "@ibp/shared/*": ["../packages/shared/src/*"],
+      "@ibp/solver-ts": ["../packages/solver-ts/src/index.ts"],
+      "@ibp/solver-ts/*": ["../packages/solver-ts/src/*"]
+    },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src", "../packages/shared/src", "../packages/solver-ts/src"]
 }

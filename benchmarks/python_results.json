@@ -1,0 +1,62 @@
+[
+  {
+    "tier": "Small (Tier 1)",
+    "engine": "Python CP-SAT (OR-Tools)",
+    "batches": 5,
+    "faculty": 15,
+    "rooms": 8,
+    "totalSessions": 70,
+    "placedSessions": 80,
+    "timeMs": 15811.2,
+    "memoryMb": 3.12,
+    "hardViolations": 0,
+    "hardSatisfactionPct": 100.0,
+    "softScore": 0.0,
+    "isValid": true
+  },
+  {
+    "tier": "College (Tier 2)",
+    "engine": "Python CP-SAT (OR-Tools)",
+    "batches": 16,
+    "faculty": 35,
+    "rooms": 22,
+    "totalSessions": 272,
+    "placedSessions": 0,
+    "timeMs": 84737.0,
+    "memoryMb": 29.56,
+    "hardViolations": 999,
+    "hardSatisfactionPct": 0.0,
+    "softScore": 0,
+    "isValid": false
+  },
+  {
+    "tier": "University (Tier 3)",
+    "engine": "Python CP-SAT (OR-Tools)",
+    "batches": 40,
+    "faculty": 80,
+    "rooms": 47,
+    "totalSessions": 680,
+    "placedSessions": 0,
+    "timeMs": 1672126.8,
+    "memoryMb": 182.91,
+    "hardViolations": 999,
+    "hardSatisfactionPct": 0.0,
+    "softScore": 0,
+    "isValid": false
+  },
+  {
+    "tier": "Evil / Heavily Constrained (Tier 4)",
+    "engine": "Python CP-SAT (OR-Tools)",
+    "batches": 8,
+    "faculty": 18,
+    "rooms": 9,
+    "totalSessions": 112,
+    "placedSessions": 0,
+    "timeMs": 48420.6,
+    "memoryMb": 5.55,
+    "hardViolations": 999,
+    "hardSatisfactionPct": 0.0,
+    "softScore": 0,
+    "isValid": false
+  }
+]

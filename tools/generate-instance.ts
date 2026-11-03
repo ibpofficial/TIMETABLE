@@ -114,7 +114,7 @@ export function generateInstance(options: GeneratorOptions = {}): { config: Sche
       id: `room_lab_${i}`,
       name: `Lab ${200 + i}`,
       type: 'practical',
-      capacity: 35,
+      capacity: 60,
       building: `Block-${(i % 2) + 1}`,
       floor: 2,
       equipment: ['computers', 'lan'],

@@ -193,6 +193,75 @@ export function Step2Batches() {
         )}
       </Card>
 
+      {/* Lab Sub-Groups & Practical Sections */}
+      {batches.length > 0 && (
+        <Card className="mb-5 border-white/5 bg-slate-900/30">
+          <div className="mb-3">
+            <h3 className="font-semibold text-slate-200 text-sm">Lab Sub-Groups & Practical Sections</h3>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Split large cohorts into lab groups (e.g. G1, G2) for practical sessions that have lab room capacity constraints.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            {batches.map((b) => {
+              const bSize = batchSizes[b] || 60;
+              const halfSize = Math.ceil(bSize / 2);
+              const storeGroups = useTimetableStore.getState().studentGroups.filter((g) => g.batchId === b);
+
+              return (
+                <div key={b} className="p-3 bg-white/[0.02] border border-white/5 rounded-xl space-y-2 min-w-[200px]">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-bold text-white">{b}</span>
+                    <span className="text-[10px] text-slate-400 font-mono">{bSize} total</span>
+                  </div>
+
+                  {storeGroups.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {storeGroups.map((g) => (
+                        <span
+                          key={g.id}
+                          className="text-[10px] bg-brand/20 text-brand-light px-2 py-0.5 rounded border border-brand/30 flex items-center gap-1"
+                        >
+                          {g.name} ({g.size})
+                          <button
+                            onClick={() => useTimetableStore.getState().removeStudentGroup(g.id)}
+                            className="hover:text-red-400 text-slate-400 ml-0.5"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        useTimetableStore.getState().addStudentGroup({
+                          id: `${b}_G1`,
+                          name: `${b}-G1`,
+                          batchId: b,
+                          size: halfSize,
+                        });
+                        useTimetableStore.getState().addStudentGroup({
+                          id: `${b}_G2`,
+                          name: `${b}-G2`,
+                          batchId: b,
+                          size: Math.floor(bSize / 2),
+                        });
+                        toast.success(`Created 2 lab groups for ${b}`);
+                      }}
+                      className="text-[11px] text-brand-light bg-brand/10 hover:bg-brand/20 px-2 py-1 rounded border border-brand/20 transition w-full text-center"
+                    >
+                      + Split into 2 Lab Groups
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
       <div className="bg-brand/[0.05] border border-brand/20 rounded-xl p-4 text-sm text-slate-400">
         <span className="text-brand font-semibold">Tip:</span> You can configure elective subjects shared across multiple batches in Step 4.
       </div>

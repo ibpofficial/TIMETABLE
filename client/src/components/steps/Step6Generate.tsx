@@ -1,14 +1,16 @@
 import { useEffect, useState, useRef } from 'react';
-import { Play, Settings, X, Activity, Layers, ShieldAlert, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Play, Settings, X, Activity, Layers, ShieldAlert, ChevronRight, AlertTriangle, Sliders, Cpu } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTimetableStore } from '../../store/useTimetableStore';
 import { Button, Card, Input, SectionHeader, Modal, ConfirmModal } from '../ui';
 import { StepNav } from './StepNav';
+import { ConstraintStudio } from '../ConstraintStudio';
 import { startGeneration, pollJob, cancelJob } from '../../api/client';
 import type { SchedulerConfig } from '../../types';
 
 export function Step6Generate() {
   const store = useTimetableStore();
+  const [activeTab, setActiveTab] = useState<'review' | 'constraints'>('review');
   const [loading, setLoading] = useState(false);
   const [valErrors, setValErrors] = useState<any[]>([]);
   const [valWarnings, setValWarnings] = useState<any[]>([]);
@@ -186,7 +188,39 @@ export function Step6Generate() {
         onClear={() => setShowClearConfirm(true)}
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Mode Tabs */}
+      <div className="flex items-center gap-4 mb-6 border-b border-white/5 pb-2">
+        <button
+          onClick={() => setActiveTab('review')}
+          className={`flex items-center gap-2 pb-2 text-sm font-semibold border-b-2 transition ${
+            activeTab === 'review'
+              ? 'border-brand text-white'
+              : 'border-transparent text-slate-400 hover:text-white'
+          }`}
+        >
+          <Layers size={16} />
+          Configuration Review & Solve
+        </button>
+        <button
+          onClick={() => setActiveTab('constraints')}
+          className={`flex items-center gap-2 pb-2 text-sm font-semibold border-b-2 transition ${
+            activeTab === 'constraints'
+              ? 'border-brand text-white'
+              : 'border-transparent text-slate-400 hover:text-white'
+          }`}
+        >
+          <Sliders size={16} />
+          Constraint Studio (30+ Rules)
+          <span className="text-[10px] bg-brand/20 text-brand-light px-1.5 py-0.5 rounded font-mono">
+            {store.constraints.filter((c) => c.enabled).length}
+          </span>
+        </button>
+      </div>
+
+      {activeTab === 'constraints' ? (
+        <ConstraintStudio />
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Wizard Inputs Summary */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
@@ -316,6 +350,35 @@ export function Step6Generate() {
             </h3>
 
             <div className="space-y-4 flex-1">
+              {/* Optimization Engine Selection */}
+              <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-2">
+                <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <Cpu size={14} className="text-brand-light" />
+                  Optimization Engine
+                </label>
+                <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  {[
+                    { id: 'auto', label: 'Auto', badge: 'Smart' },
+                    { id: 'ts', label: 'Browser TS', badge: 'Fast' },
+                    { id: 'python', label: 'CP-SAT', badge: 'Optimal' },
+                  ].map((engine) => (
+                    <button
+                      key={engine.id}
+                      type="button"
+                      onClick={() => store.setSolverOptions({ engine: engine.id as any })}
+                      className={`p-2 rounded-lg text-center border transition ${
+                        (store.solverOptions.engine || 'auto') === engine.id
+                          ? 'bg-brand/20 border-brand text-white shadow-sm'
+                          : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <div className="text-xs font-bold">{engine.label}</div>
+                      <div className="text-[10px] text-brand-light font-mono mt-0.5">{engine.badge}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Max Attempts parameter */}
               <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-3">
                 <div>
@@ -375,6 +438,7 @@ export function Step6Generate() {
           </Card>
         </div>
       </div>
+      )}
 
       <StepNav />
 
