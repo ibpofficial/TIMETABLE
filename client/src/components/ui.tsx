@@ -64,18 +64,18 @@ interface CardProps {
   glow?: boolean;
 }
 
-export function Card({ children, className = '', hover = false, glow = false }: CardProps) {
+export function Card({ children, className = '', hover = true, glow = false }: CardProps) {
   return (
     <div
       className={`
-        relative bg-panel/95 backdrop-blur-md border border-white/[0.05] rounded-2xl p-6 overflow-hidden
-        ${hover ? 'transition-all duration-300 ease-out hover:-translate-y-1 hover:shadow-2xl hover:shadow-brand/5 hover:border-white/10' : ''}
-        ${glow ? 'ring-1 ring-brand/20 shadow-lg shadow-brand/5' : ''}
+        uiverse-card relative bg-slate-900/70 dark:bg-[#0d1226]/80 backdrop-blur-xl border border-white/[0.08] dark:border-white/[0.08] rounded-2xl p-6 overflow-hidden transition-all duration-300 ease-out
+        ${hover ? 'hover:-translate-y-0.5 hover:shadow-[0_20px_40px_-15px_rgba(79,70,229,0.18)] hover:border-indigo-500/40' : ''}
+        ${glow ? 'ring-1 ring-indigo-500/30 shadow-lg shadow-indigo-500/10' : ''}
         ${className}
       `}
     >
-      {/* Subtle gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none rounded-2xl" />
+      {/* Top light highlight sheen */}
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white/15 to-transparent pointer-events-none" />
       <div className="relative z-10">{children}</div>
     </div>
   );

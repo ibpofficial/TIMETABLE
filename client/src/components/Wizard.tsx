@@ -253,13 +253,11 @@ export function Wizard() {
         >
           {currentStep < 7 && <div className="no-print"><TimetableHealthChecker /></div>}
           {renderStep()}
-
-          {/* Bottom Big AI Assistant */}
-          <div className="no-print">
-            <AiPanel />
-          </div>
         </div>
       </main>
+
+      {/* Floating AI Scheduling Assistant (Minimized by default, accessible on all steps) */}
+      <AiPanel />
 
       <footer className="max-w-[1400px] mx-auto w-full px-6 py-4 flex flex-col sm:flex-row justify-between items-center border-t border-white/[0.06] text-slate-500 text-xs no-print gap-4">
         <div className="flex flex-wrap items-center gap-4.5">

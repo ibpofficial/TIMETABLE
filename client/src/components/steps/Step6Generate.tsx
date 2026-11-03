@@ -189,29 +189,31 @@ export function Step6Generate() {
       />
 
       {/* Mode Tabs */}
-      <div className="flex items-center gap-4 mb-6 border-b border-white/5 pb-2">
+      <div className="flex items-center gap-2 mb-6 p-1 bg-black/20 dark:bg-black/40 border border-white/10 rounded-2xl w-fit">
         <button
           onClick={() => setActiveTab('review')}
-          className={`flex items-center gap-2 pb-2 text-sm font-semibold border-b-2 transition ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'review'
-              ? 'border-brand text-white'
-              : 'border-transparent text-slate-400 hover:text-white'
+              ? 'bg-brand text-white shadow-md shadow-brand/20'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
-          <Layers size={16} />
+          <Layers size={14} />
           Configuration Review & Solve
         </button>
         <button
           onClick={() => setActiveTab('constraints')}
-          className={`flex items-center gap-2 pb-2 text-sm font-semibold border-b-2 transition ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeTab === 'constraints'
-              ? 'border-brand text-white'
-              : 'border-transparent text-slate-400 hover:text-white'
+              ? 'bg-brand text-white shadow-md shadow-brand/20'
+              : 'text-slate-400 hover:text-white'
           }`}
         >
-          <Sliders size={16} />
+          <Sliders size={14} />
           Constraint Studio (30+ Rules)
-          <span className="text-[10px] bg-brand/20 text-brand-light px-1.5 py-0.5 rounded font-mono">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono font-bold ${
+            activeTab === 'constraints' ? 'bg-white/20 text-white' : 'bg-brand/20 text-brand-light'
+          }`}>
             {store.constraints.filter((c) => c.enabled).length}
           </span>
         </button>
@@ -351,31 +353,40 @@ export function Step6Generate() {
 
             <div className="space-y-4 flex-1">
               {/* Optimization Engine Selection */}
-              <div className="p-4 bg-white/[0.02] border border-white/[0.05] rounded-xl space-y-2">
-                <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                  <Cpu size={14} className="text-brand-light" />
-                  Optimization Engine
-                </label>
-                <div className="grid grid-cols-3 gap-1.5 pt-1">
+              <div className="p-4 bg-white/[0.02] border border-white/[0.06] rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <Cpu size={14} className="text-brand-light" />
+                    Optimization Engine
+                  </label>
+                  <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Dual Engine Ready
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 pt-1">
                   {[
-                    { id: 'auto', label: 'Auto', badge: 'Smart' },
-                    { id: 'ts', label: 'Browser TS', badge: 'Fast' },
-                    { id: 'python', label: 'CP-SAT', badge: 'Optimal' },
-                  ].map((engine) => (
-                    <button
-                      key={engine.id}
-                      type="button"
-                      onClick={() => store.setSolverOptions({ engine: engine.id as any })}
-                      className={`p-2 rounded-lg text-center border transition ${
-                        (store.solverOptions.engine || 'auto') === engine.id
-                          ? 'bg-brand/20 border-brand text-white shadow-sm'
-                          : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <div className="text-xs font-bold">{engine.label}</div>
-                      <div className="text-[10px] text-brand-light font-mono mt-0.5">{engine.badge}</div>
-                    </button>
-                  ))}
+                    { id: 'auto', label: 'Auto', badge: 'Smart', desc: 'Worker / CP-SAT' },
+                    { id: 'ts', label: 'Browser TS', badge: '< 1.1s', desc: 'Fast In-Worker' },
+                    { id: 'python', label: 'CP-SAT', badge: 'Optimal', desc: 'OR-Tools Engine' },
+                  ].map((engine) => {
+                    const isSelected = (store.solverOptions.engine || 'auto') === engine.id;
+                    return (
+                      <button
+                        key={engine.id}
+                        type="button"
+                        onClick={() => store.setSolverOptions({ engine: engine.id as any })}
+                        className={`p-2.5 rounded-xl text-center border transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-brand/20 border-brand text-white shadow-md shadow-brand/10 ring-1 ring-brand/40 scale-[1.02]'
+                            : 'bg-white/[0.02] border-white/5 text-slate-400 hover:text-white hover:border-white/10'
+                        }`}
+                      >
+                        <div className="text-xs font-bold">{engine.label}</div>
+                        <div className="text-[10px] text-brand-light font-mono font-bold mt-0.5">{engine.badge}</div>
+                        <div className="text-[9px] text-slate-500 mt-0.5 leading-tight">{engine.desc}</div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
