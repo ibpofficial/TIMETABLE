@@ -12,6 +12,8 @@
     "db:migrate": "prisma migrate dev --name init"
   },
   "dependencies": {
+    "@ibp/shared": "*",
+    "@ibp/solver-ts": "*",
     "@prisma/client": "^5.14.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

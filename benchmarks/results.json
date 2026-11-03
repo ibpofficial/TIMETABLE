@@ -1,0 +1,54 @@
+[
+  {
+    "tier": "TINY (2 Batches)",
+    "batches": 2,
+    "faculty": 4,
+    "rooms": 2,
+    "totalSessions": 14,
+    "timeToFirstMs": 7,
+    "timeToBestMs": 7,
+    "memoryMb": 0.5,
+    "hardConstraintPct": 100,
+    "softScore": -20,
+    "attempts": 13
+  },
+  {
+    "tier": "SCHOOL (6 Batches)",
+    "batches": 6,
+    "faculty": 12,
+    "rooms": 8,
+    "totalSessions": 66,
+    "timeToFirstMs": 46,
+    "timeToBestMs": 46,
+    "memoryMb": 5.86,
+    "hardConstraintPct": 100,
+    "softScore": -60,
+    "attempts": 61
+  },
+  {
+    "tier": "COLLEGE (12 Batches)",
+    "batches": 12,
+    "faculty": 24,
+    "rooms": 15,
+    "totalSessions": 158,
+    "timeToFirstMs": 393,
+    "timeToBestMs": 427,
+    "memoryMb": 65.58,
+    "hardConstraintPct": 100,
+    "softScore": -140,
+    "attempts": 145
+  },
+  {
+    "tier": "COLLEGE (20 Batches)",
+    "batches": 20,
+    "faculty": 40,
+    "rooms": 24,
+    "totalSessions": 262,
+    "timeToFirstMs": 1054,
+    "timeToBestMs": 2157,
+    "memoryMb": 109.24,
+    "hardConstraintPct": 100,
+    "softScore": -100,
+    "attempts": 241
+  }
+]

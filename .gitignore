@@ -134,3 +134,28 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+
+# SQLite & Database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+server/prisma/*.db
+server/prisma/*.db-journal
+
+# Python & UV
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+solver-py/.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# OS and Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
